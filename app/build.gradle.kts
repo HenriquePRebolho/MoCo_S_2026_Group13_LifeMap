@@ -47,7 +47,12 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    // material-icons dependency implementation (using the direct reference)
+    implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.compose.material3)
+    // navigation dependency implementation:
+    implementation(libs.androidx.navigation.compose)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
