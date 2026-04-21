@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -17,12 +18,18 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.livemap.ui.theme.BackgroundLightPrimary
+import com.example.livemap.ui.theme.LiveMapTheme
+import com.example.livemap.ui.theme.Purple40
+import com.example.livemap.ui.theme.md_theme_dark_primaryContainer
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,7 +42,7 @@ class MainActivity : ComponentActivity() {
                     App()
                 }
             }*/
-            MaterialTheme {
+            LiveMapTheme() {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     App()
                 }
@@ -48,7 +55,7 @@ private enum class TopDest(val route: String, val label: String) {
     Events("events", "Events"),
     Map("map", "Map"),
     New("new", "New"),
-    Friends("friends", "Friends"),
+    Friends("friends", "Friends",),
     Profile("profile", "Profile")
 }
 
@@ -66,6 +73,8 @@ fun App(modifier: Modifier = Modifier) {
     val currentRoute = backStackEntry?.destination?.route ?: TopDest.Events.route
     val tabs = listOf(TopDest.Events, TopDest.Map, TopDest.New, TopDest.Friends, TopDest.Profile)
     val selectedIndex = tabs.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
+    //val icons = listOf(R.drawable.icons_location_ripple, R.drawable.icons_map, R.drawable.icons_add_circle, R.drawable.icons_people_team, R.drawable.icons_person)
+
 
     Scaffold(
         bottomBar = {
@@ -85,7 +94,8 @@ fun App(modifier: Modifier = Modifier) {
                                     }
                                 }
                             },
-                            text = { Text(tab.label) }
+                            text = { Text(tab.label) },
+
                         )
                     }
                 }
