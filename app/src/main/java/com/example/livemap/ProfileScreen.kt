@@ -87,24 +87,6 @@ fun ProfileScreen(vm: CounterViewModel) {
 
         }
         item {
-            val vis = false
-            if (vis) {
-                Text(
-                    text = "Some text",
-                    modifier = Modifier
-                        .onVisibilityChanged { visible ->
-                            if (visible) {
-                                // Do something if visible
-                            } else {
-                                // Do something if not visible
-                            }
-                        }
-                        .padding(vertical = 8.dp)
-                )
-            }
-
-        }
-        item {
             // DatePickerModalInput() { }
             OutlinedTextField(state = rememberTextFieldState(initialText = user.birthday), label = {Text("Birthday")}, leadingIcon = {
                 Icon(
