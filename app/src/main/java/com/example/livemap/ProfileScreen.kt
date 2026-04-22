@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ModifierLocalBeyondBoundsLayout
+import androidx.compose.ui.layout.onVisibilityChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
@@ -82,6 +83,24 @@ fun ProfileScreen(vm: CounterViewModel) {
                 )
                 Text("Nico")
                 Text(text = user.description, fontWeight = FontWeight.Light, textAlign = TextAlign.Center)
+            }
+
+        }
+        item {
+            val vis = false
+            if (vis) {
+                Text(
+                    text = "Some text",
+                    modifier = Modifier
+                        .onVisibilityChanged { visible ->
+                            if (visible) {
+                                // Do something if visible
+                            } else {
+                                // Do something if not visible
+                            }
+                        }
+                        .padding(vertical = 8.dp)
+                )
             }
 
         }
