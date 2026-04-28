@@ -1,5 +1,6 @@
 package com.example.livemap
 
+import android.graphics.drawable.Icon
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,6 +11,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButtonDefaults.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -55,7 +57,7 @@ private enum class TopDest(val route: String, val label: String) {
     Events("events", "Events"),
     Map("map", "Map"),
     New("new", "New"),
-    Friends("friends", "Friends",),
+    Friends("friends", "Friends"),
     Profile("profile", "Profile")
 }
 
@@ -75,6 +77,7 @@ fun App(modifier: Modifier = Modifier) {
     val selectedIndex = tabs.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
     //val icons = listOf(R.drawable.icons_location_ripple, R.drawable.icons_map, R.drawable.icons_add_circle, R.drawable.icons_people_team, R.drawable.icons_person)
 
+    // navigationView.setItemIconTintList(null);
 
     Scaffold(
         bottomBar = {
@@ -95,7 +98,13 @@ fun App(modifier: Modifier = Modifier) {
                                 }
                             },
                             text = { Text(tab.label) },
-
+                            /*
+                            Icon(
+                                painter = painterResource(tab.icon),
+                                tint = Color.White,
+                                contentDescription = null,
+                                modifier = Modifier.background(color).padding(5.dp)
+                            )*/
                         )
                     }
                 }
