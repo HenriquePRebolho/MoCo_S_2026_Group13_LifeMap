@@ -46,6 +46,15 @@ class CounterViewModel : ViewModel() {
     var event by mutableStateOf(Event())
         private set
 
+    var visibility_owned by mutableStateOf(true)
+
+    var visibility_joined by mutableStateOf(true)
+
+    var users_list by mutableStateOf(listOf(profile))
+
+    var events_list by mutableStateOf(listOf(event))
+
+
     fun updateProfile(user: User) {
         profile = user
     }

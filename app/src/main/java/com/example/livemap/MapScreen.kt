@@ -50,13 +50,13 @@ import com.example.livemap.ui.theme.LiveMapTheme
 fun MapScreen(vm: CounterViewModel) {
     var expanded by remember { mutableStateOf(false) }
     Row() {
-        OutlinedTextField(state = rememberTextFieldState(initialText = "Search bar"), label = {Text("")})
+        OutlinedTextField(state = rememberTextFieldState(initialText = ""), label = {Text("Search bar")})
         Box(
             modifier = Modifier
                 .padding(16.dp)
         ) {
             IconButton(onClick = { expanded = !expanded }) {
-                Icon(painter = painterResource(R.drawable.icons_calendar), contentDescription = "More options")
+                Icon(painter = painterResource(R.drawable.calendar), contentDescription = "More options")
             }
             DropdownMenu(
                 expanded = expanded,

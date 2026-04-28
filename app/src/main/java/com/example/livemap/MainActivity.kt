@@ -1,6 +1,5 @@
 package com.example.livemap
 
-import android.graphics.drawable.Icon
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,39 +10,28 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButtonDefaults.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.livemap.ui.theme.BackgroundLightPrimary
 import com.example.livemap.ui.theme.LiveMapTheme
-import com.example.livemap.ui.theme.Purple40
-import com.example.livemap.ui.theme.md_theme_dark_primaryContainer
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            /*
-            LiveMapTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    App()
-                }
-            }*/
             LiveMapTheme() {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     App()
@@ -53,12 +41,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class TopDest(val route: String, val label: String) {
-    Events("events", "Events"),
-    Map("map", "Map"),
-    New("new", "New"),
-    Friends("friends", "Friends"),
-    Profile("profile", "Profile")
+private enum class TopDest(val route: String, val label: String, val icon: Int) {
+    Events("events", "Events", R.drawable.event),
+    Map("map", "Map", R.drawable.map),
+    New("new", "New", R.drawable.add_circle),
+    Friends("friends", "Friends", R.drawable.person_add),
+    Profile("profile", "Profile", R.drawable.account_circle)
 }
 
 
@@ -75,9 +63,6 @@ fun App(modifier: Modifier = Modifier) {
     val currentRoute = backStackEntry?.destination?.route ?: TopDest.Events.route
     val tabs = listOf(TopDest.Events, TopDest.Map, TopDest.New, TopDest.Friends, TopDest.Profile)
     val selectedIndex = tabs.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
-    //val icons = listOf(R.drawable.icons_location_ripple, R.drawable.icons_map, R.drawable.icons_add_circle, R.drawable.icons_people_team, R.drawable.icons_person)
-
-    // navigationView.setItemIconTintList(null);
 
     Scaffold(
         bottomBar = {
@@ -98,13 +83,13 @@ fun App(modifier: Modifier = Modifier) {
                                 }
                             },
                             text = { Text(tab.label) },
-                            /*
-                            Icon(
-                                painter = painterResource(tab.icon),
-                                tint = Color.White,
-                                contentDescription = null,
-                                modifier = Modifier.background(color).padding(5.dp)
-                            )*/
+                            icon = {
+                                Icon(
+                                    painter = painterResource(tab.icon),
+                                    tint = Color.LightGray,
+                                    contentDescription = null,
+                                )
+                            }
                         )
                     }
                 }
