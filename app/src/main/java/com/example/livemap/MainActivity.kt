@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -16,19 +17,22 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.livemap.ui.theme.LiveMapTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MaterialTheme {
+            LiveMapTheme() {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     App()
                 }
@@ -37,12 +41,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class TopDest(val route: String, val label: String) {
-    Events("events", "Events"),
-    Map("map", "Map"),
-    New("new", "New"),
-    Friends("friends", "Friends"),
-    Profile("profile", "Profile")
+private enum class TopDest(val route: String, val label: String, val icon: Int) {
+    Events("events", "Events", R.drawable.event),
+    Map("map", "Map", R.drawable.map),
+    New("new", "New", R.drawable.add_circle),
+    Friends("friends", "Friends", R.drawable.person_add),
+    Profile("profile", "Profile", R.drawable.account_circle)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,7 +77,14 @@ fun App(modifier: Modifier = Modifier) {
                                     }
                                 }
                             },
-                            text = { Text(tab.label) }
+                            text = { Text(tab.label) },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(tab.icon),
+                                    tint = Color.LightGray,
+                                    contentDescription = null,
+                                )
+                            }
                         )
                     }
                 }

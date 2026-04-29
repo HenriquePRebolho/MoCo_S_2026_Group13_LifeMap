@@ -3,148 +3,114 @@ package com.example.livemap
 import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DisplayMode
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults.contentPadding
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ModifierLocalBeyondBoundsLayout
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.example.livemap.ui.theme.LiveMapTheme
 
-@Composable
-fun text(text: String) {
-    Text(text = text, fontSize = 10.sp, modifier = Modifier.fillMaxSize())
-}
 
 @Composable
 fun ProfileScreen(vm: CounterViewModel) {
+    val user = vm.profile
 
-    val mod_text = Modifier.fillMaxSize();
+    val sex = user.sex;
+    val hobbies = user.hobbies;
+    val languages = user.languages;
 
     LazyColumn(
-        modifier = Modifier.height(500.dp),
         horizontalAlignment = Alignment.Start,
         contentPadding = PaddingValues(30.dp)
     )
     {
         item {
-            Image(
-                painter = painterResource(R.drawable.nico),
-                contentDescription = "Profile picture",
-                modifier = Modifier
-                    .size(20.dp)
-                    .clip(CircleShape)
-                    .background(color = Color.Blue)
-                    .padding(2.dp),
-                alignment = AbsoluteAlignment.BottomRight
-            )
-        }
-        item {
-            text("Nico")
-        }
-        item {
-            OutlinedTextField(state = rememberTextFieldState(initialText = "Nico"), label = {Text("Name")})
-        }
-        item {
-            //DatePickerModalInput() { }
-            Text(text = "14/01/1998", modifier = Modifier.fillMaxSize())
-        }
-        item {
-            // Languages
-            LazyColumn(modifier = Modifier
-                .height(100.dp)) {
-                item {
-                    // Dropdown language 1
-                    Text(text = "English")
-                    // Level 1
-                    Text(text = "Native")
+            Column(horizontalAlignment = CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()) {
+                Image(
+                    painter = painterResource(R.drawable.nico),
+                    contentDescription = "Profile picture",
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                )
+                Row() {
+                    Text(text = user.name, modifier = Modifier.padding (0.dp, 0.dp, 5.dp), fontSize = 18.sp,)
+                    if (sex == "Male")  {
+                        Icon(
+                            painter = painterResource(R.drawable.male),
+                            tint = Color.Unspecified,
+                            contentDescription = "Gender",
+                        )
+                    } else if (sex == "Female") {
+                        Icon(
+                            painter = painterResource(R.drawable.male),
+                            tint = Color.Unspecified,
+                            contentDescription = "Gender",
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.male),
+                            tint = Color.Unspecified,
+                            contentDescription = "Gender",
+                        )
+                    }
+
                 }
-                item {
-                    // Language 2
-                    Text(text = "Mongolian")
-                    // Level 2
-                    Text(text = "Intermediate")
-                }
+                Text(text = user.description, fontWeight = FontWeight.Light, textAlign = TextAlign.Center, modifier = Modifier.padding(bottom = 20.dp))
             }
         }
         item {
-            // Dropdown: sex
-            Text(text = "Male")
+            Listing("Hobbies", hobbies)
         }
         item {
-            // Description
-            Text(text = "I like being outside and meeting new people! I like being outside and meeting new people! I like being outside and meeting new people!")
+            Listing("Languages", languages)
         }
         item {
-            // Dropdown + custom hobbies
-            LazyColumn (modifier = Modifier
-                .height(100.dp)) {
-                    item {
-                        // Hobby1
-                        Text(text = "Reading")
-                    }
-                    item {
-                        Text(text = "Football")
-                    }
-                }
+            ProfileInfoButton(field = "Location", value = user.location, R.drawable.home, Color.Green)
         }
         item {
-            // Other contact information (phone number, email, instagram...)
-            LazyColumn(modifier = Modifier
-                .height(100.dp)) {
-                item {
-                    // Dropdown contact category
-                    Text(text = "Phone number")
-                    // Contact information
-                    Text(text = "+00 234-5678")
-                }
-                item {
-                    // Dropdown contact category
-                    Text(text = "Instagram")
-                    // Contact information
-                    Text(text = "nico.nico")
-                }
-            }
+            ProfileInfoButton(field = "Birthday", value = user.birthday, R.drawable.calendar, Color.Blue)
         }
         item {
-            // User location (optional, automatically open map focused on it)
-            Text(text = "Kaiserstraße 46, 72764 Reutlingen")
+            ProfileInfoButton(field = "Instagram", value = user.contactInfo[1], R.drawable.language, Color.Cyan)
         }
         item {
-            // User account email
-            Text(text = "nico.nico@gmail.com")
+            ProfileInfoButton(field = "Phone number", value = user.contactInfo[0], R.drawable.phone, Color.Red)
         }
         item {
-            // Password
-            Text(text = "password")
+            ProfileInfoButton(field = "Email", value = user.email, R.drawable.mail, Color.Yellow)
+        }
+        item {
+            ProfileInfoButton(field = "Password", value = "•••••••••••••••", R.drawable.password, Color.Black)
         }
     }
 }
@@ -178,11 +144,70 @@ fun DatePickerModalInput(
 }
 
 
+@Composable
+fun ProfileInfoButton(field: String, value: String, svg: Int, color: Color) {
+    Surface(shape = RoundedCornerShape(10.dp),
+        color = Color.White,
+        shadowElevation = 10.dp,
+        modifier = Modifier.fillMaxWidth().height(100.dp).padding(bottom = 10.dp))
+    {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = CircleShape, modifier = Modifier.padding(start = 16.dp)) {
+                Icon(
+                    painter = painterResource(svg),
+                    tint = Color.White,
+                    contentDescription = null,
+                    modifier = Modifier.background(color).padding(5.dp)
+                )
+            }
+            Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.Center) {
+                Text(text = field, fontWeight = FontWeight.Light, modifier = Modifier.fillMaxWidth())
+                Text(text = value, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+}
+
+
+
+@Composable()
+fun Listing(info: String, list: List<String>) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text(
+            text = info,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 10.dp)
+        )
+
+        // FlowRow is the magic component here
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            list.forEach { listitem ->
+                Surface(
+                    shape = RoundedCornerShape(50), // Pill shape
+                    color = Color.White,
+                    shadowElevation = 2.dp
+                ) {
+                    Text(
+                        text = listitem.toString(),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+
 @SuppressLint("ViewModelConstructorInComposable")
 @Preview
 @Composable()
 fun PreviewProfileScreen() {
-    MaterialTheme() {
+        LiveMapTheme(dynamicColor = false) {
         Surface(color = MaterialTheme.colorScheme.background) {
             ProfileScreen(vm = CounterViewModel())
         }
