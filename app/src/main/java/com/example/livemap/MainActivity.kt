@@ -49,17 +49,12 @@ private enum class TopDest(val route: String, val label: String, val icon: Int) 
     Profile("profile", "Profile", R.drawable.account_circle)
 }
 
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun App(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
-
-    // Shared ViewModel instance for all destinations:
     val vm: CounterViewModel = viewModel()
-
-    val backStackEntry by navController.currentBackStackEntryAsState() // where user is. "State" updates itself when observes navigation changes
+    val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: TopDest.Events.route
     val tabs = listOf(TopDest.Events, TopDest.Map, TopDest.New, TopDest.Friends, TopDest.Profile)
     val selectedIndex = tabs.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
@@ -101,11 +96,11 @@ fun App(modifier: Modifier = Modifier) {
             startDestination = TopDest.Events.route,
             modifier = Modifier.padding(padding)
         ) {
-            composable ( TopDest.Events.route ) { EventsScreen(vm) }
-            composable ( TopDest.Map.route ) { MapScreen(vm) }
-            composable ( TopDest.New.route ) { NewScreen(vm) }
-            composable ( TopDest.Friends.route ) { FriendsScreen(vm) }
-            composable ( TopDest.Profile.route ) { ProfileScreen(vm) }
+            composable(TopDest.Events.route) { EventsScreen(vm) }
+            composable(TopDest.Map.route) { MapScreen(vm) }
+            composable(TopDest.New.route) { NewScreen(vm) }
+            composable(TopDest.Friends.route) { FriendsScreen(vm) }
+            composable(TopDest.Profile.route) { ProfileScreen(vm) }
         }
     }
 }
