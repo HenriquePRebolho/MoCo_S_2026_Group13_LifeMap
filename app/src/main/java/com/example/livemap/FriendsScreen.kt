@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -68,7 +69,7 @@ fun FriendsScreen(vm: CounterViewModel) {
                 if (!searching_new_friends) {
                     FriendInfoButton(user)
                 } else {
-                    //NewFriends(name)
+                    NewFriendInfoButton(user)
                 }
             }
         }
@@ -98,6 +99,34 @@ fun FriendInfoButton(user: User) {
         }
     }
 }
+
+
+
+@Composable
+fun NewFriendInfoButton(user: User) {
+    Surface(shape = RoundedCornerShape(10.dp),
+        color = Color.White,
+        shadowElevation = 5.dp,
+        modifier = Modifier.fillMaxWidth(0.9f).height(90.dp).padding(bottom = 10.dp)
+    ){
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(R.drawable.nico),
+                tint = Color.Unspecified,
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(start = 10.dp, end = 10.dp)
+                    .size(60.dp)
+                    .clip(CircleShape)
+            )
+            Text(text = user.name, fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.fillMaxWidth(0.7f))
+            Button(onClick = { /*TODO*/ }) {
+                Text(text = "Add")
+            }
+        }
+    }
+}
+
 
 
 

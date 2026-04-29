@@ -21,6 +21,7 @@ data class User(
 )
 
 data class Event(
+    val id: Int = 1,
     val name: String = "Event name",
     val date: String = "14/01/2023",
     val time_start: String = "14:00",

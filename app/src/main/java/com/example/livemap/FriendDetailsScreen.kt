@@ -98,7 +98,7 @@ fun FriendDetailScreen(vm: CounterViewModel) {
                     fontWeight = FontWeight.Light,
                     textAlign = TextAlign.Center,
                 )
-                Button(onClick = { addOrRemoveFriend() }, modifier = Modifier.padding(top = 10.dp, bottom = 10.dp)) {
+                Button(onClick = { addOrRemoveFriend(/*TODO*/) }, modifier = Modifier.padding(top = 10.dp, bottom = 10.dp)) {
                     if (user.friends.contains(user.name)) {
                         Text("Add friend")
                     } else {

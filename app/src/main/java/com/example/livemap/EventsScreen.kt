@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -99,7 +101,8 @@ fun EventInfoButton(event: Event) {
     Surface(shape = RoundedCornerShape(10.dp),
         color = Color.White,
         shadowElevation = 5.dp,
-        modifier = Modifier.fillMaxWidth(0.9f).height(140.dp).padding(bottom = 10.dp)
+        modifier = Modifier.fillMaxWidth(0.9f).height(140.dp).padding(bottom = 10.dp),
+        // onClick = actionStartActivity<EventDetailScreen>(vm = CounterViewModel, id = event.id) // TODO
     ){
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.Center) {
