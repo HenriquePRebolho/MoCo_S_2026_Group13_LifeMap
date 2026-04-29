@@ -13,7 +13,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -29,12 +28,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            /*
-            LiveMapTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    App()
-                }
-            }*/
             MaterialTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     App()
@@ -52,17 +45,12 @@ private enum class TopDest(val route: String, val label: String) {
     Profile("profile", "Profile")
 }
 
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun App(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
-
-    // Shared ViewModel instance for all destinations:
     val vm: CounterViewModel = viewModel()
-
-    val backStackEntry by navController.currentBackStackEntryAsState() // where user is. "State" updates itself when observes navigation changes
+    val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: TopDest.Events.route
     val tabs = listOf(TopDest.Events, TopDest.Map, TopDest.New, TopDest.Friends, TopDest.Profile)
     val selectedIndex = tabs.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
@@ -97,11 +85,11 @@ fun App(modifier: Modifier = Modifier) {
             startDestination = TopDest.Events.route,
             modifier = Modifier.padding(padding)
         ) {
-            composable ( TopDest.Events.route ) { EventsScreen(vm) }
-            composable ( TopDest.Map.route ) { MapScreen(vm) }
-            composable ( TopDest.New.route ) { NewScreen(vm) }
-            composable ( TopDest.Friends.route ) { FriendsScreen(vm) }
-            composable ( TopDest.Profile.route ) { ProfileScreen(vm) }
+            composable(TopDest.Events.route) { EventsScreen(vm) }
+            composable(TopDest.Map.route) { MapScreen(vm) }
+            composable(TopDest.New.route) { NewScreen(vm) }
+            composable(TopDest.Friends.route) { FriendsScreen(vm) }
+            composable(TopDest.Profile.route) { ProfileScreen(vm) }
         }
     }
 }
