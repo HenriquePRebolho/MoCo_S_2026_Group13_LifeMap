@@ -24,8 +24,8 @@ data class Event(
     val id: Int = 1,
     val name: String = "Event name",
     val date: String = "14/01/2023",
-    val time_start: String = "14:00",
-    val time_end: String = "15:00",
+    val timeStart: String = "14:00",
+    val timeEnd: String = "15:00",
     val location: String = "Kaiserstraße 46, 72764 Reutlingen",
     val description: String = "Event description",
     val participants: List<String> = listOf("User1", "User2"),
@@ -40,28 +40,14 @@ data class Event(
 )
 
 class CounterViewModel : ViewModel() {
-
     var profile by mutableStateOf(User())
         private set
 
     var event by mutableStateOf(Event())
         private set
 
-    var visibility_owned by mutableStateOf(true)
+    var visibilityOwned by mutableStateOf(true)
 
-    var visibility_joined by mutableStateOf(true)
-
-    var users_list by mutableStateOf(listOf(profile))
-
-    var events_list by mutableStateOf(listOf(event))
-
-
-    fun updateProfile(user: User) {
-        profile = user
-    }
-
-    fun updateEvent(event: Event) {
-        this.event = event
-    }
+    var visibilityEvent by mutableStateOf(true)
 
 }

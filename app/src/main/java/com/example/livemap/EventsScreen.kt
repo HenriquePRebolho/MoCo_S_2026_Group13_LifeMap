@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,14 +31,14 @@ fun EventsScreen(vm: CounterViewModel) {
     val event = vm.event
     val events = listOf(event, event, event)
 
-    Column() {
+    Column() { // TODO: fix scroll
         Row(modifier = Modifier.fillMaxWidth().padding(top = 15.dp, bottom = 10.dp, start = 10.dp, end = 10.dp)) {
             Button(
-                onClick = { vm.visibility_owned = !vm.visibility_owned },
+                onClick = { vm.visibilityOwned = !vm.visibilityOwned },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Owned Events", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Icon(
-                    painter = painterResource(if (vm.visibility_owned) R.drawable.stat_minus else R.drawable.stat),
+                    painter = painterResource(if (vm.visibilityOwned) R.drawable.stat_minus else R.drawable.stat),
                     tint = Color.White,
                     contentDescription = null
                 )
@@ -49,8 +47,8 @@ fun EventsScreen(vm: CounterViewModel) {
         LazyColumn(modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(5.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
-            items(events.size) { index ->
-                if (vm.visibility_owned) {
+            items(events.size) { index -> // TODO: show by date-time
+                if (vm.visibilityOwned) {
                     EventInfoButton(event)
                 }
             }
@@ -59,11 +57,11 @@ fun EventsScreen(vm: CounterViewModel) {
 
         Row(modifier = Modifier.fillMaxWidth().padding(top = 15.dp, bottom = 10.dp, start = 10.dp, end = 10.dp)) {
             Button(
-                onClick = { vm.visibility_joined = !vm.visibility_joined },
+                onClick = { vm.visibilityEvent = !vm.visibilityEvent },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Joined Events", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Icon(
-                    painter = painterResource(if (vm.visibility_owned) R.drawable.stat_minus else R.drawable.stat),
+                    painter = painterResource(if (vm.visibilityOwned) R.drawable.stat_minus else R.drawable.stat),
                     tint = Color.White,
                     contentDescription = null
                 )
@@ -73,7 +71,7 @@ fun EventsScreen(vm: CounterViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(5.dp)) {
             items(events.size) { index ->
-                if (vm.visibility_joined) {
+                if (vm.visibilityEvent) {
                     EventInfoButton(event)
                 }
             }
@@ -102,13 +100,13 @@ fun EventInfoButton(event: Event) {
         color = Color.White,
         shadowElevation = 5.dp,
         modifier = Modifier.fillMaxWidth(0.9f).height(140.dp).padding(bottom = 10.dp),
-        // onClick = actionStartActivity<EventDetailScreen>(vm = CounterViewModel, id = event.id) // TODO
+        // onClick = actionStartActivity<EventDetailScreen>(vm = CounterViewModel, id = event.id) // TODO: send to correct EventDetaiScreen
     ){
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.Center) {
                 Text(text = event.name, fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.fillMaxWidth().padding(bottom = 5.dp))
 
-                EventInfo(R.drawable.schedule, event.date + ", " + event.time_start + "-" + event.time_end)
+                EventInfo(R.drawable.schedule, event.date + ", " + event.timeStart + "-" + event.timeEnd)
 
                 EventInfo(R.drawable.location_on, event.location)
 

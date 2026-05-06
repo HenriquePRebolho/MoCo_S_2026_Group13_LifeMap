@@ -42,20 +42,26 @@ fun EventDetailScreen(vm: CounterViewModel, event_id : Int) {
         )
 
         Text(text = event.name, fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.fillMaxWidth().padding(10.dp))
-        Text(text = event.description, modifier = Modifier.padding(bottom = 10.dp, start = 5.dp, end = 5.dp))
 
-        EventInfo(R.drawable.schedule, event.date + ", " + event.time_start + "-" + event.time_end)
+        Text(text = event.description, modifier = Modifier.padding(bottom = 10.dp, start = 10.dp, end = 10.dp), fontSize = 18.sp)
+
+        EventInfo(R.drawable.schedule, event.date + ", " + event.timeStart + "-" + event.timeEnd)
+
         EventInfo(R.drawable.location_on, event.location)
+
         EventInfo(R.drawable.group,  ""+event.participants.count() + "/" + event.limitPeople + " joined")
 
         Text(text = "Created by: " + event.owner, modifier = Modifier.padding(start = 5.dp))
+
         Text(text = event.contactInfo.toString(), modifier = Modifier.padding(start = 5.dp))
 
         Listing("Tags", event.tags)
-        Listing("Restrictions", event.restrictions)
-        Listing("Languages", event.languages)
-        Listing("Bring", event.bring)
 
+        Listing("Restrictions", event.restrictions)
+
+        Listing("Languages", event.languages)
+
+        Listing("Bring", event.bring)
 
         Button(onClick = {/*TODO*/}, modifier = Modifier.background(if (inEvent) Color.Red else Color.Green).fillMaxWidth()) {
             if (inEvent) {

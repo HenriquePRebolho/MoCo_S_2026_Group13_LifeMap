@@ -28,8 +28,8 @@ fun ConffirmPopPup(vm: CounterViewModel, text: String) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = text)
             Row() {
-                Button(onClick = {null}, modifier = Modifier.padding(start = 10.dp, end = 5.dp)) {Text("Confirm")}
-                Button(onClick = {null}, modifier = Modifier.padding(end = 10.dp, start = 5.dp)) {Text("Cancel")}
+                Button(onClick = {/*TODO*/}, modifier = Modifier.padding(start = 10.dp, end = 5.dp)) {Text("Confirm")}
+                Button(onClick = {/*TODO*/}, modifier = Modifier.padding(end = 10.dp, start = 5.dp)) {Text("Cancel")}
             }
         }
     }

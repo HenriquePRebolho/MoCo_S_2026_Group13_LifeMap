@@ -64,26 +64,11 @@ fun ProfileScreen(vm: CounterViewModel) {
                 )
                 Row() {
                     Text(text = user.name, modifier = Modifier.padding (0.dp, 0.dp, 5.dp), fontSize = 18.sp,)
-                    if (sex == "Male")  {
-                        Icon(
-                            painter = painterResource(R.drawable.male),
-                            tint = Color.Unspecified,
-                            contentDescription = "Gender",
-                        )
-                    } else if (sex == "Female") {
-                        Icon(
-                            painter = painterResource(R.drawable.male),
-                            tint = Color.Unspecified,
-                            contentDescription = "Gender",
-                        )
-                    } else {
-                        Icon(
-                            painter = painterResource(R.drawable.male),
-                            tint = Color.Unspecified,
-                            contentDescription = "Gender",
-                        )
-                    }
-
+                    Icon(
+                        painter = painterResource(if (sex == "Male") R.drawable.male else if (sex == "Female") R.drawable.female else R.drawable.agender),
+                        tint = Color.Unspecified,
+                        contentDescription = "Gender",
+                    )
                 }
                 Text(text = user.description, fontWeight = FontWeight.Light, textAlign = TextAlign.Center, modifier = Modifier.padding(bottom = 20.dp))
             }

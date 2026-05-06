@@ -3,7 +3,6 @@ package com.example.livemap
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -52,7 +51,7 @@ fun NewScreen(vm: CounterViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             items(events.size) { index ->
-                if (vm.visibility_owned) {
+                if (vm.visibilityOwned) {
                     EventInfoButton(event)
                 }
             }
