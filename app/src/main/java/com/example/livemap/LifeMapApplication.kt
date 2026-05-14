@@ -3,7 +3,6 @@ package com.example.livemap
 import android.app.Application
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.firestoreSettings
 import com.google.firebase.firestore.persistentCacheSettings
 
@@ -25,15 +24,9 @@ class LifeMapApplication : Application() {
         // Initialize Firebase using the values from google-services.json.
         FirebaseApp.initializeApp(this)
 
-        // Configure Firestore: enable persistent local cache (SQLite-backed) with no size limit.
-        // without this, the app would still cache data but only in memory and data would be lost when the app is killed. 
+        // Configure Firestore: enable persistent (disk-backed) local cache.
         val settings = firestoreSettings {
-            setLocalCacheSettings(
-                persistentCacheSettings {
-                    // CACHE_SIZE_UNLIMITED tells Firestore not to evict cached documents based on size.
-                    setSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
-                }
-            )
+            setLocalCacheSettings(persistentCacheSettings { })
         }
         FirebaseFirestore.getInstance().firestoreSettings = settings
     }
