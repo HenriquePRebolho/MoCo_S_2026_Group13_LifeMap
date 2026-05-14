@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -63,4 +64,16 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    // ── Firebase ───────────────────────────────────────────────────────
+    // BoM (Bill of Materials) - declares ONE version, all firebase-*
+    implementation(platform(libs.firebase.bom))
+
+    // Firebase SDKs 
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
+
+    // Coroutines bridge adds .await() extension on Firebase Tasks,
+    // `auth.signIn(...).await()` instead of callbacks
+    implementation(libs.kotlinx.coroutines.play.services)
 }
