@@ -30,6 +30,29 @@ import com.example.livemap.ui.theme.LiveMapTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // ── TEMPORARY FIREBASE CONNECTION TEST ─────────────────────────
+        // Writes a test document to Firestore on every app launch.
+        // Verify in the Firebase console that the "_connectionTest"
+        // collection appears with a document.
+        // REMOVE THIS BLOCK once verified.
+        val testData = hashMapOf(
+            "timestamp" to com.google.firebase.Timestamp.now(),
+            "message" to "Hello from LifeMap!",
+            "device" to android.os.Build.MODEL
+        )
+        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            .collection("_connectionTest")
+            .add(testData)
+            .addOnSuccessListener { docRef ->
+                android.util.Log.d("LifeMap", "Firestore connected. Doc id: ${docRef.id}")
+            }
+            .addOnFailureListener { e ->
+                android.util.Log.e("LifeMap", "Firestore write failed", e)
+            }
+        // ── END TEMPORARY TEST ──────────────────────────────────────────
+
+
         enableEdgeToEdge()
         setContent {
             LiveMapTheme() {
