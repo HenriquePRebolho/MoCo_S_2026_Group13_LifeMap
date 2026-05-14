@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 
-data class User(
+data class UiUser(
     val name: String = "Nico", // 33 max characters
     val birthday: String = "14/01/1998",
     val description: String = "I like being outside and meeting new people!",
@@ -20,7 +20,7 @@ data class User(
     val blocked: List<String> = listOf("User3", "User4"),
 )
 
-data class Event(
+data class UiEvent(
     val id: Int = 1,
     val name: String = "Event name",
     val date: String = "14/01/2023",
@@ -40,10 +40,10 @@ data class Event(
 )
 
 class CounterViewModel : ViewModel() {
-    var profile by mutableStateOf(User())
+    var profile by mutableStateOf(UiUser())
         private set
 
-    var event by mutableStateOf(Event())
+    var event by mutableStateOf(UiEvent())
         private set
 
     var visibilityOwned by mutableStateOf(true)
