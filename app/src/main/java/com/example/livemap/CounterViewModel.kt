@@ -36,7 +36,9 @@ data class Event(
     val limitPeople: Int = 12,
     val public: Boolean = true,
     val bring: List<String> = listOf("Bring1", "Bring2"),
-    val contactInfo: List<String> = listOf("+00 234-5678", "@nico.nico")
+    val contactInfo: List<String> = listOf("+00 234-5678", "@nico.nico"),
+    val locationLat: Double = 0.0,
+    val locationLng: Double = 0.0,
 )
 
 class CounterViewModel : ViewModel() {
@@ -50,4 +52,54 @@ class CounterViewModel : ViewModel() {
 
     var visibilityEvent by mutableStateOf(true)
 
+    val events: List<Event> = listOf(
+        Event(
+            id = 1,
+            name = "Mercedes-Benz Museum Visit",
+            date = "14/06/2025",
+            timeStart = "10:00",
+            timeEnd = "14:00",
+            location = "Mercedes-Benz Museum, Stuttgart",
+            description = "Explore the iconic Mercedes-Benz Museum spanning 9 floors of automotive history.",
+            owner = "LifeMap",
+            tags = listOf("Museum", "Culture", "Cars"),
+            languages = listOf("English", "German"),
+            limitPeople = 20,
+            public = true,
+            locationLat = 48.788244,
+            locationLng = 9.234186
+        ),
+        Event(
+            id = 2,
+            name = "Porsche Museum Visit",
+            date = "21/06/2025",
+            timeStart = "10:00",
+            timeEnd = "13:00",
+            location = "Porsche Museum, Stuttgart-Zuffenhausen",
+            description = "Discover the history of Porsche with over 80 iconic vehicles on display.",
+            owner = "LifeMap",
+            tags = listOf("Museum", "Culture", "Cars"),
+            languages = listOf("English", "German"),
+            limitPeople = 15,
+            public = true,
+            locationLat = 48.8344,
+            locationLng = 9.1520
+        ),
+        Event(
+            id = 3,
+            name = "Reutlingen Stadium",
+            date = "28/06/2025",
+            timeStart = "17:00",
+            timeEnd = "19:00",
+            location = "Kreuzeichenstadion, Reutlingen",
+            description = "Join us for an evening football match at Reutlingen's local stadium.",
+            owner = "LifeMap",
+            tags = listOf("Sport", "Football", "Outdoor"),
+            languages = listOf("English", "German"),
+            limitPeople = 30,
+            public = true,
+            locationLat = 48.478490,
+            locationLng = 9.189913
+        )
+    )
 }

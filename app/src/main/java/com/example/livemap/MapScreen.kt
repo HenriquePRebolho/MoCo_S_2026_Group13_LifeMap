@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -43,29 +44,17 @@ import java.net.URL
 import java.net.URLEncoder
 
 
-// Resultado de una ruta: puntos para dibujar en el mapa, distancia (m) y duración (s)
 private data class RouteResult(val points: List<GeoPoint>, val distanceM: Double, val durationS: Double)
 
-// Ubicación por defecto cuando el usuario deniega el permiso de localización
 private val SEVILLA = GeoPoint(37.3886, -5.9823)
 
-// Tiempo máximo para considerar válida una posición cacheada (5 minutos)
 private const val MAX_CACHE_AGE_MS = 5 * 60 * 1000L
 
-
-// ─── PANTALLA DEL MAPA ───────────────────────────────────────────────────────
-// @Composable: describe la interfaz. Compose la re-ejecuta cuando cambia algún estado.
 
 @Composable
 fun MapScreen(vm: CounterViewModel) {
     val context = LocalContext.current
-    // scope ligado a esta pantalla para lanzar corrutinas sin bloquear la UI
     val scope = rememberCoroutineScope()
-
-
-    // ── Estado ───────────────────────────────────────────────────────────────
-    // remember { mutableStateOf(...) }: conserva el valor entre recomposiciones
-    // y redibuja la pantalla automáticamente cuando cambia.
 
     var tienePermiso by remember {
         mutableStateOf(
@@ -74,81 +63,80 @@ fun MapScreen(vm: CounterViewModel) {
         )
     }
 
-    var userLocation by remember { mutableStateOf(SEVILLA) }  // posición actual del usuario
-    var searchQuery  by remember { mutableStateOf("") }        // texto del campo de búsqueda
-    var isLoading    by remember { mutableStateOf(false) }     // muestra/oculta el spinner
-    var errorMsg     by remember { mutableStateOf("") }        // mensaje cuando la dirección no existe
+    var userLocation by remember { mutableStateOf(SEVILLA) }
+    var searchQuery  by remember { mutableStateOf("") }
+    var isLoading    by remember { mutableStateOf(false) }
+    var errorMsg     by remember { mutableStateOf("") }
 
-    var driveRoute by remember { mutableStateOf<Polyline?>(null) } // línea azul en el mapa
-    var walkRoute  by remember { mutableStateOf<Polyline?>(null) } // línea verde en el mapa
-    var driveLabel by remember { mutableStateOf("") }              // p.ej. "3.2 km · 8 min"
+    var driveRoute by remember { mutableStateOf<Polyline?>(null) }
+    var walkRoute  by remember { mutableStateOf<Polyline?>(null) }
+    var driveLabel by remember { mutableStateOf("") }
     var walkLabel  by remember { mutableStateOf("") }
-    var destMarker by remember { mutableStateOf<Marker?>(null) }   // marcador del destino buscado
+    var destMarker by remember { mutableStateOf<Marker?>(null) }
+    var selectedEvent by remember { mutableStateOf<Event?>(null) }
 
-
-    // ── Permiso de localización ───────────────────────────────────────────────
-    // Prepara el diálogo del sistema. El bloque se ejecuta cuando el usuario responde.
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> tienePermiso = granted }
 
-
-    // ── Configuración del mapa ────────────────────────────────────────────────
-    // User-Agent obligatorio: OpenStreetMap rechaza peticiones sin identificador
     Configuration.getInstance().userAgentValue = context.packageName
 
-    // remember { } = el MapView se crea UNA SOLA VEZ y sobrevive a las recomposiciones
     val mapView = remember {
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK) // tiles de OpenStreetMap
-            setMultiTouchControls(true)             // pellizcar para hacer zoom
-            controller.setZoom(15.0)               // nivel de calle
+            setTileSource(TileSourceFactory.MAPNIK)
+            setMultiTouchControls(true)
+            controller.setZoom(15.0)
             controller.setCenter(SEVILLA)
         }
     }
 
-    // Marcador del usuario: se añade al mapa una sola vez
     val userMarker = remember {
         Marker(mapView).apply {
-            title = "Tu ubicación"
-            // ANCHOR_CENTER/BOTTOM: la punta del icono toca exactamente la coordenada
+            title = "Your location"
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
             position = SEVILLA
-            mapView.overlays.add(this) // overlays = elementos visibles sobre el mapa
+            mapView.overlays.add(this)
         }
     }
 
-
-    // ── LaunchedEffect: permisos y ubicación ─────────────────────────────────
-    // Se ejecuta al entrar a la pantalla y cada vez que tienePermiso cambia.
     LaunchedEffect(tienePermiso) {
         if (!tienePermiso) {
-            // Sin permiso → mostrar el diálogo del sistema
             permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         } else {
-            // Con permiso → obtener ubicación real. fetchLocation es suspend:
-            // espera la respuesta del GPS en segundo plano sin bloquear la pantalla.
             val loc = fetchLocation(context)
             if (loc != null) {
                 userLocation = loc
-                userMarker.position = loc          // mueve el marcador al punto real
-                mapView.controller.animateTo(loc)  // animación suave al punto real
-                mapView.invalidate()               // redibuja el mapa
+                userMarker.position = loc
+                mapView.controller.animateTo(loc)
+                mapView.invalidate()
             }
-            // loc == null → GPS sin fix todavía, queda centrado en Sevilla
         }
     }
 
-    // ── DisposableEffect: ciclo de vida ──────────────────────────────────────
-    // osmdroid necesita onResume/onPause para gestionar la descarga de tiles
+    // Place a marker for every event that has coordinates
+    LaunchedEffect(Unit) {
+        vm.events.filter { it.locationLat != 0.0 || it.locationLng != 0.0 }.forEach { event ->
+            val marker = Marker(mapView).apply {
+                position = GeoPoint(event.locationLat, event.locationLng)
+                title = event.name
+                snippet = event.location
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                setOnMarkerClickListener { _, _ ->
+                    selectedEvent = event
+                    true
+                }
+            }
+            mapView.overlays.add(0, marker) // insert below user marker
+        }
+        mapView.invalidate()
+    }
+
     DisposableEffect(Unit) {
         mapView.onResume()
         onDispose { mapView.onPause() }
     }
 
 
-    // ── Limpiar rutas ─────────────────────────────────────────────────────────
-    // Borra del mapa las rutas, el marcador de destino y los mensajes
     fun clearRoutes() {
         driveRoute?.let { mapView.overlays.remove(it) }
         walkRoute?.let  { mapView.overlays.remove(it) }
@@ -162,26 +150,65 @@ fun MapScreen(vm: CounterViewModel) {
         mapView.invalidate()
     }
 
+    // Single-mode route to a known coordinate (used by event marker buttons)
+    fun routeToPoint(dest: GeoPoint, label: String, profile: String) {
+        scope.launch {
+            isLoading = true
+            clearRoutes()
+            try {
+                val marker = Marker(mapView).apply {
+                    position = dest
+                    title = label
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                }
+                mapView.overlays.add(marker)
+                destMarker = marker
 
-    // ── Buscar dirección y calcular rutas ────────────────────────────────────
-    // 1. Geocodifica el texto a coordenadas (Nominatim)
-    // 2. Calcula ruta en coche y a pie (OSRM, routing.openstreetmap.de)
-    // 3. Dibuja ambas rutas en el mapa
+                val result = fetchRoute(userLocation, dest, profile)
+                if (result != null) {
+                    val lineColor = if (profile == "driving") "#2196F3" else "#4CAF50"
+                    val line = Polyline(mapView).apply {
+                        setPoints(result.points)
+                        outlinePaint.color = android.graphics.Color.parseColor(lineColor)
+                        outlinePaint.strokeWidth = 10f
+                    }
+                    mapView.overlays.add(0, line)
+                    if (profile == "driving") {
+                        driveRoute = line
+                        driveLabel = formatRouteLabel(result.distanceM, result.durationS)
+                    } else {
+                        walkRoute = line
+                        walkLabel = formatRouteLabel(result.distanceM, result.durationS)
+                    }
+                }
+
+                val bbox = BoundingBox(
+                    maxOf(userLocation.latitude, dest.latitude),
+                    maxOf(userLocation.longitude, dest.longitude),
+                    minOf(userLocation.latitude, dest.latitude),
+                    minOf(userLocation.longitude, dest.longitude)
+                )
+                mapView.zoomToBoundingBox(bbox.increaseByScale(1.4f), true)
+                mapView.invalidate()
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    // Geocode a text address then calculate both routes (used by search bar)
     fun searchAndRoute(query: String) {
         if (query.isBlank()) return
         scope.launch {
             isLoading = true
             clearRoutes()
-            // try/finally: garantiza que el spinner se apague aunque haya errores
             try {
-                // 1. Geocodificación: texto → coordenadas
                 val destination = geocodeAddress(query)
                 if (destination == null) {
-                    errorMsg = "No se encontró \"$query\""
+                    errorMsg = "Could not find \"$query\""
                     return@launch
                 }
 
-                // 2. Marcador en el destino
                 val marker = Marker(mapView).apply {
                     position = destination
                     title = query
@@ -190,27 +217,24 @@ fun MapScreen(vm: CounterViewModel) {
                 mapView.overlays.add(marker)
                 destMarker = marker
 
-                // 3. Calcular ambas rutas
                 val driveResult = fetchRoute(userLocation, destination, "driving")
                 val walkResult  = fetchRoute(userLocation, destination, "foot")
 
-                // 4. Dibujar ruta en coche (azul)
                 if (driveResult != null) {
                     val line = Polyline(mapView).apply {
                         setPoints(driveResult.points)
-                        outlinePaint.color = android.graphics.Color.parseColor("#2196F3") // azul
+                        outlinePaint.color = android.graphics.Color.parseColor("#2196F3")
                         outlinePaint.strokeWidth = 10f
                     }
-                    mapView.overlays.add(0, line) // índice 0 = queda debajo de los marcadores
+                    mapView.overlays.add(0, line)
                     driveRoute = line
                     driveLabel = formatRouteLabel(driveResult.distanceM, driveResult.durationS)
                 }
 
-                // 5. Dibujar ruta a pie (verde)
                 if (walkResult != null) {
                     val line = Polyline(mapView).apply {
                         setPoints(walkResult.points)
-                        outlinePaint.color = android.graphics.Color.parseColor("#4CAF50") // verde
+                        outlinePaint.color = android.graphics.Color.parseColor("#4CAF50")
                         outlinePaint.strokeWidth = 10f
                     }
                     mapView.overlays.add(0, line)
@@ -218,9 +242,6 @@ fun MapScreen(vm: CounterViewModel) {
                     walkLabel = formatRouteLabel(walkResult.distanceM, walkResult.durationS)
                 }
 
-                // 6. Zoom automático para ver origen y destino
-                // BoundingBox(norte, este, sur, oeste) encierra los dos puntos
-                // increaseByScale(1.4f) añade un 40% de margen para no quedar pegado a los bordes
                 val bbox = BoundingBox(
                     maxOf(userLocation.latitude, destination.latitude),
                     maxOf(userLocation.longitude, destination.longitude),
@@ -231,24 +252,17 @@ fun MapScreen(vm: CounterViewModel) {
                 mapView.invalidate()
 
             } finally {
-                isLoading = false // siempre apagar el spinner, aunque haya fallado algo
+                isLoading = false
             }
         }
     }
 
 
-    // ─── UI ──────────────────────────────────────────────────────────────────
-    // Box: apila sus hijos en capas. El mapa va de fondo y los controles flotan encima.
-
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // Mapa — ocupa toda la pantalla
-        // AndroidView: puente para usar una View clásica de Android dentro de Compose
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
 
-
-        // Barra de búsqueda + error (arriba, flotando sobre el mapa)
-        // Column: coloca la barra y el posible error en vertical, uno debajo del otro
+        // Search bar (top)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -272,22 +286,21 @@ fun MapScreen(vm: CounterViewModel) {
                         value = searchQuery,
                         onValueChange = {
                             searchQuery = it
-                            if (errorMsg.isNotEmpty()) errorMsg = "" // borra el error al escribir
+                            if (errorMsg.isNotEmpty()) errorMsg = ""
                         },
-                        placeholder = { Text("Buscar dirección...") },
+                        placeholder = { Text("Search address...") },
                         singleLine = true,
-                        modifier = Modifier.weight(1f), // ocupa todo el espacio sobrante de la fila
-                        colors = TextFieldDefaults.colors( // fondo transparente: oculta el gris por defecto
+                        modifier = Modifier.weight(1f),
+                        colors = TextFieldDefaults.colors(
                             focusedContainerColor   = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
                             focusedIndicatorColor   = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent,
                             disabledIndicatorColor  = Color.Transparent
                         ),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), // botón "buscar" en el teclado
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { searchAndRoute(searchQuery) })
                     )
-                    // Spinner mientras espera la respuesta de la API; X si hay texto escrito
                     if (isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.padding(end = 12.dp).size(20.dp),
@@ -295,31 +308,29 @@ fun MapScreen(vm: CounterViewModel) {
                         )
                     } else if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = ""; clearRoutes() }) {
-                            Icon(painter = painterResource(R.drawable.cancel), contentDescription = "Limpiar", tint = Color.Gray)
+                            Icon(painter = painterResource(R.drawable.cancel), contentDescription = "Clear", tint = Color.Gray)
                         }
                     }
                 }
             }
 
-            // Mensaje de error — aparece justo debajo de la barra si la búsqueda falla
             if (errorMsg.isNotEmpty()) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFFEBEE),    // rojo muy claro de fondo
+                    color = Color(0xFFFFEBEE),
                     shadowElevation = 4.dp
                 ) {
                     Text(
                         text = errorMsg,
-                        color = Color(0xFFC62828), // rojo oscuro para el texto
+                        color = Color(0xFFC62828),
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
                     )
                 }
             }
         }
 
-
-        // Botones flotantes: centrar, zoom+, zoom− (abajo a la derecha)
+        // FAB buttons: center, zoom+, zoom− (bottom right)
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -329,10 +340,10 @@ fun MapScreen(vm: CounterViewModel) {
             FloatingActionButton(
                 onClick = { mapView.controller.animateTo(userLocation); mapView.controller.setZoom(15.0) },
                 containerColor = Color.White,
-                contentColor = Color(0xFF1976D2), // azul oscuro para el icono
+                contentColor = Color(0xFF1976D2),
                 modifier = Modifier.size(48.dp)
             ) {
-                Icon(painter = painterResource(R.drawable.location_on), contentDescription = "Centrar")
+                Icon(painter = painterResource(R.drawable.location_on), contentDescription = "Center")
             }
             FloatingActionButton(
                 onClick = { mapView.controller.zoomIn() },
@@ -348,8 +359,7 @@ fun MapScreen(vm: CounterViewModel) {
             }
         }
 
-
-        // Leyenda de rutas (abajo a la izquierda) — visible solo cuando hay rutas dibujadas
+        // Route legend (bottom left) — visible only when a route is drawn
         if (driveRoute != null || walkRoute != null) {
             Surface(
                 modifier = Modifier
@@ -361,17 +371,96 @@ fun MapScreen(vm: CounterViewModel) {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp)) {
-                        if (driveRoute != null) LegendRow(Color(0xFF2196F3), "En coche · $driveLabel")
-                        if (walkRoute  != null) LegendRow(Color(0xFF4CAF50), "Andando  · $walkLabel")
+                        if (driveRoute != null) LegendRow(Color(0xFF2196F3), "By car · $driveLabel")
+                        if (walkRoute  != null) LegendRow(Color(0xFF4CAF50), "On foot · $walkLabel")
                     }
-                    // Botón X para borrar las rutas directamente desde la leyenda
                     IconButton(onClick = { clearRoutes() }) {
                         Icon(
                             painter = painterResource(R.drawable.cancel),
-                            contentDescription = "Borrar rutas",
+                            contentDescription = "Clear routes",
                             tint = Color.Gray,
                             modifier = Modifier.size(18.dp)
                         )
+                    }
+                }
+            }
+        }
+
+        // Event info card — appears when an event marker is tapped
+        selectedEvent?.let { event ->
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 24.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                shadowElevation = 8.dp
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = event.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = event.location,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                            Text(
+                                text = "${event.date}  ·  ${event.timeStart}–${event.timeEnd}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                        }
+                        IconButton(onClick = { selectedEvent = null }) {
+                            Icon(
+                                painter = painterResource(R.drawable.cancel),
+                                contentDescription = "Close",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Button(
+                            onClick = {
+                                routeToPoint(
+                                    GeoPoint(event.locationLat, event.locationLng),
+                                    event.name,
+                                    "driving"
+                                )
+                                selectedEvent = null
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                        ) {
+                            Text("By Car", color = Color.White)
+                        }
+                        Button(
+                            onClick = {
+                                routeToPoint(
+                                    GeoPoint(event.locationLat, event.locationLng),
+                                    event.name,
+                                    "foot"
+                                )
+                                selectedEvent = null
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                        ) {
+                            Text("On Foot", color = Color.White)
+                        }
                     }
                 }
             }
@@ -380,13 +469,9 @@ fun MapScreen(vm: CounterViewModel) {
 }
 
 
-// ─── COMPOSABLE AUXILIAR ─────────────────────────────────────────────────────
-// Una fila de la leyenda: rectángulo de color + texto "modo · distancia · tiempo"
-
 @Composable
 private fun LegendRow(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
-        // Rectángulo pequeño que simula visualmente la línea de ruta
         Surface(
             modifier = Modifier.size(width = 16.dp, height = 4.dp),
             color = color,
@@ -397,10 +482,6 @@ private fun LegendRow(color: Color, label: String) {
 }
 
 
-// ─── FUNCIONES AUXILIARES ────────────────────────────────────────────────────
-
-// Convierte metros y segundos en texto legible para la leyenda.
-// Ejemplos: "450 m · 6 min"  /  "12.3 km · 1h 8min"
 private fun formatRouteLabel(distanceM: Double, durationS: Double): String {
     val dist = if (distanceM < 1000) "${distanceM.toInt()} m"
                else "${"%.1f".format(distanceM / 1000)} km"
@@ -409,9 +490,6 @@ private fun formatRouteLabel(distanceM: Double, durationS: Double): String {
     return "$dist · $time"
 }
 
-// Obtiene la ubicación actual del dispositivo.
-// 1. Intenta la última posición cacheada (respuesta instantánea).
-// 2. Si no hay caché (p.ej. primer uso tras dar permiso), solicita una lectura fresca y espera.
 @SuppressLint("MissingPermission")
 private suspend fun fetchLocation(context: Context): GeoPoint? {
     if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -419,9 +497,6 @@ private suspend fun fetchLocation(context: Context): GeoPoint? {
 
     val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
-    // Paso 1: caché — solo válido si tiene menos de 5 minutos.
-    // getLastKnownLocation puede devolver posiciones de horas atrás (p.ej. EE.UU. si
-    // el emulador o el dispositivo tenía una localización antigua guardada).
     val now = System.currentTimeMillis()
     val gpsCache = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
     val netCache = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
@@ -432,58 +507,43 @@ private suspend fun fetchLocation(context: Context): GeoPoint? {
     }
     if (cached != null) return GeoPoint(cached.latitude, cached.longitude)
 
-    // Paso 2: sin caché → solicita una lectura fresca y suspende la corrutina hasta recibirla.
-    // suspendCancellableCoroutine convierte el callback de Android en una función suspend:
-    // la pantalla no se congela, simplemente espera en segundo plano.
     return suspendCancellableCoroutine { cont ->
         val listener = object : LocationListener {
             override fun onLocationChanged(loc: Location) {
-                lm.removeUpdates(this) // una sola lectura es suficiente
+                lm.removeUpdates(this)
                 if (cont.isActive) cont.resume(GeoPoint(loc.latitude, loc.longitude))
             }
         }
-        // Red (WiFi/móvil) responde antes que el GPS; si no hay red disponible, usa GPS
         val provider = when {
             lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
             lm.isProviderEnabled(LocationManager.GPS_PROVIDER)     -> LocationManager.GPS_PROVIDER
             else -> { cont.resume(null); return@suspendCancellableCoroutine }
         }
         lm.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper())
-        // Si el usuario sale de la pantalla antes de recibir la ubicación, limpia el listener
         cont.invokeOnCancellation { lm.removeUpdates(listener) }
     }
 }
 
-// Convierte una dirección en texto a coordenadas geográficas.
-// Usa Nominatim (OpenStreetMap) — gratuito, sin API key.
-// "suspend": puede pausarse esperando la red sin bloquear la UI.
 private suspend fun geocodeAddress(query: String): GeoPoint? = withContext(Dispatchers.IO) {
     try {
-        val encoded = URLEncoder.encode(query, "UTF-8") // "Plaza Nueva" → "Plaza+Nueva"
+        val encoded = URLEncoder.encode(query, "UTF-8")
         val conn = URL("https://nominatim.openstreetmap.org/search?q=$encoded&format=json&limit=1")
             .openConnection()
-        conn.setRequestProperty("User-Agent", "LifeMap/1.0 (Android)") // obligatorio por Nominatim
+        conn.setRequestProperty("User-Agent", "LifeMap/1.0 (Android)")
         val arr = JSONArray(conn.getInputStream().bufferedReader().readText())
         if (arr.length() == 0) return@withContext null
-        val obj = arr.getJSONObject(0) // primer resultado (el más relevante)
+        val obj = arr.getJSONObject(0)
         GeoPoint(obj.getDouble("lat"), obj.getDouble("lon"))
     } catch (e: Exception) { null }
 }
 
-// Calcula la ruta entre dos puntos usando OSRM (routing.openstreetmap.de).
-// Gratuito, sin API key. Cada perfil usa un servidor con su propio grafo:
-//   "driving" → routed-car  (red de carreteras)
-//   "foot"    → routed-foot (aceras, caminos, puentes peatonales)
-// Devuelve los puntos del trazado + distancia y duración, o null si falla.
 private suspend fun fetchRoute(origin: GeoPoint, dest: GeoPoint, profile: String): RouteResult? = withContext(Dispatchers.IO) {
     try {
-        // Un servidor diferente por perfil — cada uno tiene cargado su propio grafo
         val server = if (profile == "foot")
             "https://routing.openstreetmap.de/routed-foot/route/v1/driving"
         else
             "https://routing.openstreetmap.de/routed-car/route/v1/driving"
 
-        // OSRM espera "longitud,latitud" — al revés que GeoPoint(latitud, longitud)
         val url = "$server/${origin.longitude},${origin.latitude}" +
                 ";${dest.longitude},${dest.latitude}" +
                 "?overview=full&geometries=geojson"
@@ -496,11 +556,10 @@ private suspend fun fetchRoute(origin: GeoPoint, dest: GeoPoint, profile: String
         if (routes.length() == 0) return@withContext null
 
         val route     = routes.getJSONObject(0)
-        val distanceM = route.getDouble("distance") // metros totales
-        val durationS = route.getDouble("duration") // segundos estimados
+        val distanceM = route.getDouble("distance")
+        val durationS = route.getDouble("duration")
         val coords    = route.getJSONObject("geometry").getJSONArray("coordinates")
 
-        // GeoJSON devuelve [longitud, latitud] — hay que invertir a GeoPoint(latitud, longitud)
         val points = (0 until coords.length()).map { i ->
             val pt = coords.getJSONArray(i)
             GeoPoint(pt.getDouble(1), pt.getDouble(0))
