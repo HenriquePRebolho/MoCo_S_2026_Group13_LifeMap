@@ -5,8 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 
+// Holds the logged-in user's personal information
 data class User(
-    val name: String = "Nico", // 33 max characters
+    val name: String = "Nico",
     val birthday: String = "14/01/1998",
     val description: String = "I like being outside and meeting new people!",
     val languages: List<String> = listOf("English", "Mongolian"),
@@ -20,6 +21,7 @@ data class User(
     val blocked: List<String> = listOf("User3", "User4"),
 )
 
+// Represents a social event that can be shown on the map and in the events list
 data class Event(
     val id: Int = 1,
     val name: String = "Event name",
@@ -32,16 +34,22 @@ data class Event(
     val owner: String = "User1",
     val tags: List<String> = listOf("Tag1", "Tag2"),
     val restrictions: List<String> = listOf("Restriction1", "Restriction2"),
-    val languages: List<String> =  listOf("English", "Mongolian", "Cantonese", "Bosnian", "Yapper"),
+    val languages: List<String> = listOf("English", "Mongolian", "Cantonese", "Bosnian", "Yapper"),
     val limitPeople: Int = 12,
     val public: Boolean = true,
     val bring: List<String> = listOf("Bring1", "Bring2"),
     val contactInfo: List<String> = listOf("+00 234-5678", "@nico.nico"),
     val locationLat: Double = 0.0,
     val locationLng: Double = 0.0,
-)
+) {
+    // True if this event has real GPS coordinates (not the default 0,0)
+    val hasLocation: Boolean
+        get() = locationLat != 0.0 && locationLng != 0.0
+}
 
+// ViewModel: holds the app's data and survives screen rotations
 class CounterViewModel : ViewModel() {
+
     var profile by mutableStateOf(User())
         private set
 
@@ -49,9 +57,9 @@ class CounterViewModel : ViewModel() {
         private set
 
     var visibilityOwned by mutableStateOf(true)
-
     var visibilityEvent by mutableStateOf(true)
 
+    // Sample events with real coordinates — will be replaced by Firebase data later
     val events: List<Event> = listOf(
         Event(
             id = 1,
