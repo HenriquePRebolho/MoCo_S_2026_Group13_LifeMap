@@ -79,7 +79,7 @@ fun FriendsScreen(vm: CounterViewModel) {
 
 
 @Composable
-fun FriendInfoButton(user: User) {
+fun FriendInfoButton(user: UiUser) { // TODO: change event variable
     Surface(shape = RoundedCornerShape(10.dp),
         color = Color.White,
         shadowElevation = 5.dp,
@@ -103,7 +103,7 @@ fun FriendInfoButton(user: User) {
 
 
 @Composable
-fun NewFriendInfoButton(user: User) {
+fun NewFriendInfoButton(user: UiUser) { // TODO: change event variable
     Surface(shape = RoundedCornerShape(10.dp),
         color = Color.White,
         shadowElevation = 5.dp,
