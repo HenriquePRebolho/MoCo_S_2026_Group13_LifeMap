@@ -102,7 +102,7 @@ fun MapScreen(vm: CounterViewModel) {
     var driveLabel    by remember { mutableStateOf("") }
     var walkLabel     by remember { mutableStateOf("") }
     var destMarker    by remember { mutableStateOf<Marker?>(null) }
-    var selectedEvent by remember { mutableStateOf<Event?>(null) }
+    var selectedEvent by remember { mutableStateOf<UiEvent?>(null) }
 
     // Keeps track of the event markers so we can remove them if the list changes
     val eventMarkers  = remember { mutableListOf<Marker>() }

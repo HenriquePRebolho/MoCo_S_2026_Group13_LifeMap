@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DisplayMode
@@ -37,10 +38,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.livemap.ui.theme.LiveMapTheme
-
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.livemap.ui.auth.AuthViewModel
 
 @Composable
 fun ProfileScreen(vm: CounterViewModel) {
+
+    val authViewModel: AuthViewModel = viewModel()
+
     val user = vm.profile
 
     val sex = user.sex;
@@ -55,6 +60,10 @@ fun ProfileScreen(vm: CounterViewModel) {
         item {
             Column(horizontalAlignment = CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()) {
+                // TEMPORARY logout button
+                Button(onClick = { authViewModel.logout() }) {
+                    Text("Logout")
+                }
                 Image(
                     painter = painterResource(R.drawable.nico),
                     contentDescription = "Profile picture",
