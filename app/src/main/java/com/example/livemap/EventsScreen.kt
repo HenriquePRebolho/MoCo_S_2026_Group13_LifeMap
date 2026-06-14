@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -95,7 +97,7 @@ fun EventInfo(icon: Int, text: String) {
 
 
 @Composable
-fun EventInfoButton(event: Event) {
+fun EventInfoButton(event: UiEvent) { // TODO: change event variable
     Surface(shape = RoundedCornerShape(10.dp),
         color = Color.White,
         shadowElevation = 5.dp,
