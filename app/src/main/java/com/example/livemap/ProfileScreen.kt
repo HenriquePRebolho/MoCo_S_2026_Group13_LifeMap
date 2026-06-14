@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.livemap.ui.theme.LiveMapTheme
 
+// TODO: set fields to not be editable
+// TODO: create button that allow changes, then converts into confirm and cancel button
 
 @Composable
 fun ProfileScreen(vm: CounterViewModel) {
@@ -56,7 +58,7 @@ fun ProfileScreen(vm: CounterViewModel) {
             Column(horizontalAlignment = CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()) {
                 Image(
-                    painter = painterResource(R.drawable.nico),
+                    painter = painterResource(R.drawable.nico), //TODO: add profile picture to user
                     contentDescription = "Profile picture",
                     modifier = Modifier
                         .size(100.dp)

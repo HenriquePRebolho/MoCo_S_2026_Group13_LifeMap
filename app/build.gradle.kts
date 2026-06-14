@@ -56,6 +56,8 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.espresso.core)
     implementation(libs.androidx.graphics.shapes)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.foundation)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -63,4 +65,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    implementation(libs.androidx.activity)
+    implementation("androidx.fragment:fragment-ktx:1.8.9")
+    implementation("io.coil-kt:coil-compose:2.6.0")
 }
