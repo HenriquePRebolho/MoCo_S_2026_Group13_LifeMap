@@ -97,7 +97,7 @@ fun EventInfo(icon: Int, text: String) {
 
 
 @Composable
-fun EventInfoButton(event: Event) {
+fun EventInfoButton(event: UiEvent) { // TODO: change event variable
     Surface(shape = RoundedCornerShape(10.dp),
         color = Color.White,
         shadowElevation = 5.dp,

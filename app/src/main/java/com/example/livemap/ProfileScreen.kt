@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DisplayMode
@@ -40,9 +41,14 @@ import com.example.livemap.ui.theme.LiveMapTheme
 
 // TODO: set fields to not be editable
 // TODO: create button that allow changes, then converts into confirm and cancel button
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.livemap.ui.auth.AuthViewModel
 
 @Composable
 fun ProfileScreen(vm: CounterViewModel) {
+
+    val authViewModel: AuthViewModel = viewModel()
+
     val user = vm.profile
 
     val sex = user.sex;
@@ -57,6 +63,10 @@ fun ProfileScreen(vm: CounterViewModel) {
         item {
             Column(horizontalAlignment = CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()) {
+                // TEMPORARY logout button
+                Button(onClick = { authViewModel.logout() }) {
+                    Text("Logout")
+                }
                 Image(
                     painter = painterResource(R.drawable.nico), //TODO: add profile picture to user
                     contentDescription = "Profile picture",
