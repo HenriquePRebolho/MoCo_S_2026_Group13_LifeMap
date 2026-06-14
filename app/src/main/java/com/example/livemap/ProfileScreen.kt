@@ -38,6 +38,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.livemap.ui.theme.LiveMapTheme
+
+// TODO: set fields to not be editable
+// TODO: create button that allow changes, then converts into confirm and cancel button
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.livemap.ui.auth.AuthViewModel
 
@@ -65,7 +68,7 @@ fun ProfileScreen(vm: CounterViewModel) {
                     Text("Logout")
                 }
                 Image(
-                    painter = painterResource(R.drawable.nico),
+                    painter = painterResource(R.drawable.nico), //TODO: add profile picture to user
                     contentDescription = "Profile picture",
                     modifier = Modifier
                         .size(100.dp)
