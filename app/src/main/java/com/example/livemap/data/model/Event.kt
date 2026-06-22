@@ -58,5 +58,19 @@ data class Event(
     val contactInstagram: String = "",
 
     val createdAt: Timestamp? = null,
-    val updatedAt: Timestamp? = null
+    val updatedAt: Timestamp? = null,
+
+    // ── NEW FIELDS for the EventsScreen design ──────────────────────────
+    // Single category used by the filter chips on the Events screen.
+    // Expected values: "Sport", "Study", "Social", "Art", "Food", "Music".
+    // Empty string = uncategorized (shown as "Other" in the UI).
+    val category: String = "",
+
+    // Target age range for the event: "18-25", "26-35", "36-45", "Any".
+    val ageRange: String = "Any",
+
+    // Gender preference of the organizer: "Any", "Male", "Female", "Mixed".
+    // The filter treats "Any" as matching everything.
+    val genderPref: String = "Any",
+    // ────────────────────────────────────────────────────────────────────
 )
