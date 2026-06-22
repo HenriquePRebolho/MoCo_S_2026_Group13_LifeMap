@@ -140,4 +140,58 @@ class AuthViewModel(
     fun logout() {
         authRepository.signOut()
     }
+
+    /**
+     * Completely removes the current user's account.
+     *
+     * Process:
+     *   1. Retrieve the authenticated user's uid.
+     *   2. Delete the user's Firestore profile document.
+     *   3. Delete the Firebase Authentication account.
+     *
+     * After successful deletion, Firebase Auth automatically
+     * transitions to an unauthenticated state and the UI should
+     * return to the login screen.
+     */
+    fun deleteAccount() {
+        viewModelScope.launch {
+
+            // Retrieve the uid of the currently authenticated user.
+            val currentState = authState.value
+            val uid = (currentState as? AuthState.Authenticated)?.uid ?: return@launch
+
+            // Delete profile data stored in Firestore.
+            userRepository.deleteUserProfile(uid)
+
+            // Delete Firebase Authentication account.
+            authRepository.deleteCurrentUser()
+        }
+    }
+
+    /**
+     * Sends a password reset email.
+     */
+    fun resetPassword(email: String) {
+
+        if (email.isBlank()) {
+            _formState.value = FormState.Error("Please enter your email.")
+            return
+        }
+
+        _formState.value = FormState.Submitting
+
+        viewModelScope.launch {
+
+            authRepository
+                .sendPasswordResetEmail(email.trim())
+                .onSuccess {
+                    _formState.value = FormState.Success
+                }
+                .onFailure { e ->
+                    _formState.value = FormState.Error(
+                        e.localizedMessage ?: "Unable to send reset email."
+                    )
+                }
+        }
+    }
 }

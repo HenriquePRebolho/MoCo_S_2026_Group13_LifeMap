@@ -110,4 +110,17 @@ class UserRepository(
                 "displayNameLower" to newName.lowercase()
             )
         )
+
+    /**
+     * Deletes the user's Firestore profile document.
+     *
+     * Removes the document stored at:
+     *   /users/{uid}
+     *
+     * This only deletes profile data from Firestore.
+     * It does NOT delete the Firebase Authentication account.
+     */
+    suspend fun deleteUserProfile(uid: String): Result<Unit> = runCatching {
+        usersCollection.document(uid).delete().await()
+    }
 }

@@ -61,4 +61,26 @@ class AuthRepository(
     fun signOut() {
         auth.signOut()
     }
+
+    /**
+     * Permanently deletes the currently authenticated Firebase user.
+     *
+     * This removes the account from Firebase Authentication,
+     * meaning the user will no longer be able to sign in.
+     *
+     */
+    suspend fun deleteCurrentUser(): Result<Unit> = runCatching {
+        auth.currentUser?.delete()?.await()
+            ?: error("No authenticated user found")
+    }
+
+    /**
+     * Sends a password reset email to the specified address.
+     *
+     * Firebase generates the reset link automatically and sends
+     * the email using its built-in password recovery flow.
+     */
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit> = runCatching {
+        auth.sendPasswordResetEmail(email).await()
+    }
 }

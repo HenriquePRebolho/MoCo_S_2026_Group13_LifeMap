@@ -67,6 +67,14 @@ fun ProfileScreen(vm: CounterViewModel) {
                 Button(onClick = { authViewModel.logout() }) {
                     Text("Logout")
                 }
+                Button(
+                    onClick = {
+                        authViewModel.deleteAccount()
+                    },
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text("Delete Account")
+                }
                 Image(
                     painter = painterResource(R.drawable.nico), //TODO: add profile picture to user
                     contentDescription = "Profile picture",

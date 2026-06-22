@@ -46,7 +46,8 @@ import com.example.livemap.data.repository.FormState
 @Composable
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
-    viewModel: AuthViewModel = viewModel()
+    viewModel: AuthViewModel = viewModel(),
+    onNavigateToForgotPassword: () -> Unit,
 ) {
     val formState by viewModel.formState.collectAsStateWithLifecycle()
 
@@ -133,7 +134,15 @@ fun LoginScreen(
             }
         }
 
+        TextButton(
+            onClick = onNavigateToForgotPassword
+        ) {
+            Text("Forgot your password?")
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
+
+
 
         TextButton(onClick = onNavigateToRegister) {
             Text("Don't have an account? Sign up")
