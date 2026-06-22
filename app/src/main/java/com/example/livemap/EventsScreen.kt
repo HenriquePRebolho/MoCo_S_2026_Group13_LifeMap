@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -271,6 +272,17 @@ private fun FilterChipPill(text: String, selected: Boolean, onClick: () -> Unit)
     Surface(shape = RoundedCornerShape(50), color = bg, modifier = Modifier.clickableNoRipple(onClick)) {
         Text(text, color = fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+
+
+@Composable()
+fun EventInfo(icon: Int, text: String, modifier: Modifier = Modifier) {
+    Row(modifier = modifier) {
+        Icon(painter = painterResource(icon),
+            tint = Color.LightGray,
+            contentDescription = null,
+            modifier = Modifier.padding(end = 7.dp, bottom = 2.dp)
+        )
+        Text(text = text, fontWeight = FontWeight.Normal, modifier = Modifier.fillMaxWidth())
     }
 }
 

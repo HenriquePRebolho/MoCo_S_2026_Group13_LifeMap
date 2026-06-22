@@ -140,24 +140,8 @@ fun App(modifier: Modifier = Modifier) {
             composable(TopDest.Events.route) { EventsScreen() }
             composable(TopDest.Map.route) { MapScreen(vm) }
             composable(TopDest.New.route) { NewScreen(vm) }
-            composable(TopDest.Friends.route) {
-                FriendsScreen(
-                    onNavigateToFriendDetail = { uid ->
-                        navController.navigate("friends/$uid")
-                    }
-                )
-            }
+            composable(TopDest.Friends.route) { FriendsScreen(vm) }
             composable(TopDest.Profile.route) { ProfileScreen() }
-
-            // Friend detail — receives the uid as a navigation argument.
-            // The route "friends/{uid}" lives outside the bottom-tab destinations
-            // but the Friends tab stays highlighted while we're on it (see selectedIndex below).
-            composable(
-                route = "friends/{uid}",
-                arguments = listOf(navArgument("uid") { type = NavType.StringType })
-            ) {
-                FriendDetailScreen(onBack = { navController.popBackStack() })
-            }
         }
     }
 }

@@ -198,15 +198,11 @@ private fun LoadedDetail(
                 }
             }
         }
-
-        // Interests
-        if (user.hobbies.isNotEmpty()) {
-            item { ChipsBlock("Interests", user.hobbies, ChipBg, ChipPurpleText) }
+        item {
+            //Listing("Hobbies", hobbies)
         }
-
-        // Common interests (only if we share any)
-        if (commonInterests.isNotEmpty()) {
-            item { ChipsBlock("In common", commonInterests, SoftPink, PinkTextDark) }
+        item {
+            //Listing("Languages", languages)
         }
 
         // Languages

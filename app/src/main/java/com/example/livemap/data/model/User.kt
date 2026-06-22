@@ -1,7 +1,6 @@
 package com.example.livemap.data.model
 
 import com.google.firebase.Timestamp
-import com.google.firebase.firestore.DocumentId
 
 /**
  * Represents a LifeMap user.
@@ -16,8 +15,6 @@ import com.google.firebase.firestore.DocumentId
  *   - Password is NOT stored here, Firebase Auth handles credentials.
  */
 data class User(
-    // @DocumentId tells Firestore to populate this field with the document ID automatically when reading.
-    @DocumentId
     val uid: String = "",
 
     // Display name shown across the app

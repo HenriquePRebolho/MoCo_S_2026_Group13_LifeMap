@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.livemap"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -57,6 +57,8 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.espresso.core)
     implementation(libs.androidx.graphics.shapes)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.foundation)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -64,6 +66,12 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    implementation(libs.androidx.activity)
+    implementation(platform("androidx.compose:compose-bom:2026.06.00"))
+    implementation("androidx.compose.material3:material3")
+    implementation ("androidx.compose.material:material-icons-extended")
+    implementation("androidx.fragment:fragment-ktx:1.8.9")
+    implementation("io.coil-kt:coil-compose:2.6.0")
     // ── Firebase ───────────────────────────────────────────────────────
     // BoM (Bill of Materials) - declares ONE version, all firebase-*
     implementation(platform(libs.firebase.bom))
