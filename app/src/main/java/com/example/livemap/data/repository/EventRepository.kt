@@ -34,8 +34,10 @@ class EventRepository(
                     close(error)
                     return@addSnapshotListener
                 }
+                // Guard toObject so a single malformed event document doesn't
+                // throw on the main thread and crash the screen (see UserRepository).
                 val events = snapshot?.documents
-                    ?.mapNotNull { it.toObject(Event::class.java) }
+                    ?.mapNotNull { runCatching { it.toObject(Event::class.java) }.getOrNull() }
                     ?: emptyList()
                 trySend(events)
             }
