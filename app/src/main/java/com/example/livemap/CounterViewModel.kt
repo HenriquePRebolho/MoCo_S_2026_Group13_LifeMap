@@ -6,7 +6,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 
 data class UiUser(
-    val name: String = "Nico", // 33 max characters
+    val id: Int = 1,
+    val name: String = "Nico1234567", // 33 max characters
     val birthday: String = "14/01/1998",
     val description: String = "I like being outside and meeting new people!",
     val languages: List<String> = listOf("English", "Mongolian"),
@@ -22,18 +23,18 @@ data class UiUser(
 
 data class UiEvent(
     val id: Int = 1,
-    val name: String = "Event name",
-    val date: String = "14/01/2023",
-    val timeStart: String = "14:00",
+    var name: String = "Event name",
+    var date: String = "14/01/2023",
+    var timeStart: String = "14:00",
     val timeEnd: String = "15:00",
-    val location: String = "Kaiserstraße 46, 72764 Reutlingen",
-    val description: String = "Event description",
+    var location: String = "Kaiserstraße 46, 72764 Reutlingen",
+    var description: String = "Event description",
     val participants: List<String> = listOf("User1", "User2"),
     val owner: String = "User1",
     val tags: List<String> = listOf("Tag1", "Tag2"),
     val restrictions: List<String> = listOf("Restriction1", "Restriction2"),
     val languages: List<String> =  listOf("English", "Mongolian", "Cantonese", "Bosnian", "Yapper"),
-    val limitPeople: Int = 12,
+    var limitPeople: Int = 12,
     val public: Boolean = true,
     val bring: List<String> = listOf("Bring1", "Bring2"),
     val contactInfo: List<String> = listOf("+00 234-5678", "@nico.nico"),

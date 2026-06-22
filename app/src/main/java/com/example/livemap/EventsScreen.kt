@@ -84,8 +84,8 @@ fun EventsScreen(vm: CounterViewModel) {
 
 
 @Composable()
-fun EventInfo(icon: Int, text: String) {
-    Row() {
+fun EventInfo(icon: Int, text: String, modifier: Modifier = Modifier) {
+    Row(modifier = modifier) {
         Icon(painter = painterResource(icon),
             tint = Color.LightGray,
             contentDescription = null,

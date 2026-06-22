@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.livemap"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -67,6 +67,9 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation(libs.androidx.activity)
+    implementation(platform("androidx.compose:compose-bom:2026.06.00"))
+    implementation("androidx.compose.material3:material3")
+    implementation ("androidx.compose.material:material-icons-extended")
     implementation("androidx.fragment:fragment-ktx:1.8.9")
     implementation("io.coil-kt:coil-compose:2.6.0")
     // ── Firebase ───────────────────────────────────────────────────────

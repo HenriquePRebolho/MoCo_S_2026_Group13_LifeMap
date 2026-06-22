@@ -136,7 +136,7 @@ fun App(modifier: Modifier = Modifier) {
             composable(TopDest.Map.route) { MapScreen(vm) }
             composable(TopDest.New.route) { NewScreen(vm) }
             composable(TopDest.Friends.route) { FriendsScreen(vm) }
-            composable(TopDest.Profile.route) { ProfileScreen(vm) }
+            composable(TopDest.Profile.route) { ProfileScreen() }
         }
     }
 }

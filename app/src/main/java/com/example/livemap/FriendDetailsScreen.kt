@@ -93,10 +93,10 @@ fun FriendDetailScreen(vm: CounterViewModel) {
             }
         }
         item {
-            Listing("Hobbies", hobbies)
+            //Listing("Hobbies", hobbies)
         }
         item {
-            Listing("Languages", languages)
+            //Listing("Languages", languages)
         }
         item {
             ProfileInfoButton(
