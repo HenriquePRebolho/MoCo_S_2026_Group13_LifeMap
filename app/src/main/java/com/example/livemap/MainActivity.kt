@@ -33,7 +33,10 @@ import androidx.navigation.compose.rememberNavController
 import com.example.livemap.data.repository.AuthState
 import com.example.livemap.ui.auth.AuthNavHost
 import com.example.livemap.ui.auth.AuthViewModel
+import com.example.livemap.FriendsScreen
 import com.example.livemap.ui.theme.LiveMapTheme
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,7 +96,9 @@ fun App(modifier: Modifier = Modifier) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: TopDest.Events.route
     val tabs = listOf(TopDest.Events, TopDest.Map, TopDest.New, TopDest.Friends, TopDest.Profile)
-    val selectedIndex = tabs.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
+    val selectedIndex = tabs.indexOfFirst { tab ->
+        currentRoute == tab.route || currentRoute?.startsWith("${tab.route}/") == true
+    }.coerceAtLeast(0)
 
     Scaffold(
         bottomBar = {
@@ -132,11 +137,27 @@ fun App(modifier: Modifier = Modifier) {
             startDestination = TopDest.Events.route,
             modifier = Modifier.padding(padding)
         ) {
-            composable(TopDest.Events.route) { EventsScreen(vm) }
+            composable(TopDest.Events.route) { EventsScreen() }
             composable(TopDest.Map.route) { MapScreen(vm) }
             composable(TopDest.New.route) { NewScreen(vm) }
-            composable(TopDest.Friends.route) { FriendsScreen(vm) }
-            composable(TopDest.Profile.route) { ProfileScreen(vm) }
+            composable(TopDest.Friends.route) {
+                FriendsScreen(
+                    onNavigateToFriendDetail = { uid ->
+                        navController.navigate("friends/$uid")
+                    }
+                )
+            }
+            composable(TopDest.Profile.route) { ProfileScreen() }
+
+            // Friend detail — receives the uid as a navigation argument.
+            // The route "friends/{uid}" lives outside the bottom-tab destinations
+            // but the Friends tab stays highlighted while we're on it (see selectedIndex below).
+            composable(
+                route = "friends/{uid}",
+                arguments = listOf(navArgument("uid") { type = NavType.StringType })
+            ) {
+                FriendDetailScreen(onBack = { navController.popBackStack() })
+            }
         }
     }
 }

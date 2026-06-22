@@ -43,7 +43,6 @@ class UserRepository(
 
         // map alongside the data class so FieldValue.serverTimestamp() can be added
         val data = mapOf(
-            "uid" to newUser.uid,
             "email" to newUser.email,
             "displayName" to newUser.displayName,
             "displayNameLower" to newUser.displayNameLower,
@@ -110,4 +109,27 @@ class UserRepository(
                 "displayNameLower" to newName.lowercase()
             )
         )
+    /**
+     * Emits the full list of users whenever any of them changes.
+     * Sorted by displayName (case-insensitive).
+     *
+     * Used by FriendsScreen to populate "Suggested for you" — anyone who
+     * isn't the current user and isn't already a friend or blocked.
+     *
+     * Scalability note: this reads ALL users. Fine for an academic project
+     * with dozens of users; would need pagination for hundreds+.
+     */
+    fun observeAllUsers(): Flow<List<User>> = callbackFlow {
+        val registration = usersCollection.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error); return@addSnapshotListener
+            }
+            val users = snapshot?.documents
+                ?.mapNotNull { it.toObject(User::class.java) }
+                ?.sortedBy { it.displayNameLower }
+                ?: emptyList()
+            trySend(users)
+        }
+        awaitClose { registration.remove() }
+    }
 }
