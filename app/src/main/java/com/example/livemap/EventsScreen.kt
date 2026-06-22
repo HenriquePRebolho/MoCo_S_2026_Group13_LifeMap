@@ -69,7 +69,7 @@ private val GenderOptions    = listOf("Any", "Male", "Female", "Mixed")
 private val MaxPeopleOptions = listOf("5", "10", "20", "Any")
 private val TimeOptions      = listOf("Today", "Tomorrow", "This week", "Any")
 
-private enum class CardKind { AVAILABLE, JOINED, OWNER }
+enum class CardKind { AVAILABLE, JOINED, OWNER }
 
 /* ---------- Screen ---------- */
 @Composable
@@ -266,12 +266,20 @@ private fun FilterRow(label: String, options: List<String>, selected: String?, o
 }
 
 @Composable
-private fun FilterChipPill(text: String, selected: Boolean, onClick: () -> Unit) {
+fun FilterChipPill(text: String, selected: Boolean, onClick: () -> Unit) {
     val bg = if (selected) SageDark else ChipBg
     val fg = if (selected) Color.White else HoneyText
-    Surface(shape = RoundedCornerShape(50), color = bg, modifier = Modifier.clickableNoRipple(onClick)) {
-        Text(text, color = fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = bg,
+        modifier = Modifier.clickableNoRipple(onClick)
+    ) {
+        Text(
+            text, color = fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+        )
+    }
+}
 
 
 @Composable()
@@ -287,7 +295,7 @@ fun EventInfo(icon: Int, text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SectionHeader(title: String, count: Int) {
+fun SectionHeader(title: String, count: Int) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -302,12 +310,12 @@ private fun SectionHeader(title: String, count: Int) {
 }
 
 @Composable
-private fun EmptyHint(text: String) {
+fun EmptyHint(text: String) {
     Text(text, color = MutedText, fontSize = 14.sp, modifier = Modifier.padding(vertical = 4.dp))
 }
 
 @Composable
-private fun EventCard(
+fun EventCard(
     event: EventUi,
     actionLabel: String,
     actionEnabled: Boolean,
@@ -368,7 +376,7 @@ private fun EventCard(
 }
 
 @Composable
-private fun InfoLine(icon: Int, text: String) {
+fun InfoLine(icon: Int, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(painter = painterResource(icon), tint = MutedText,
             contentDescription = null, modifier = Modifier.size(16.dp))
@@ -378,14 +386,14 @@ private fun InfoLine(icon: Int, text: String) {
 }
 
 @Composable
-private fun MiniTag(text: String, bg: Color, fg: Color) {
+fun MiniTag(text: String, bg: Color, fg: Color) {
     Surface(shape = RoundedCornerShape(50), color = bg) {
         Text(text, fontSize = 11.sp, color = fg, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
     }
 }
 
-private fun categoryColor(category: String): Color = when (category) {
+fun categoryColor(category: String): Color = when (category) {
     "Sport"  -> Sage
     "Study"  -> Sand
     "Social" -> Honey
@@ -395,7 +403,7 @@ private fun categoryColor(category: String): Color = when (category) {
     else     -> ChipBg
 }
 
-private fun categoryTextColor(category: String): Color = when (category) {
+fun categoryTextColor(category: String): Color = when (category) {
     "Sport"  -> Color(0xFF3D4A2A)
     "Study"  -> Color(0xFF5C3522)
     "Social" -> Color(0xFF6B4A0E)
@@ -406,7 +414,7 @@ private fun categoryTextColor(category: String): Color = when (category) {
 }
 
 @Composable
-private fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier = this.then(
+fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier = this.then(
     Modifier.clickable(
         interactionSource = remember { MutableInteractionSource() },
         indication = null,

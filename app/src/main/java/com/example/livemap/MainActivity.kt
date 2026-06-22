@@ -140,7 +140,7 @@ fun App(modifier: Modifier = Modifier) {
             composable(TopDest.Events.route) { EventsScreen() }
             composable(TopDest.Map.route) { MapScreen(vm) }
             composable(TopDest.New.route) { NewScreen(vm) }
-            composable(TopDest.Friends.route) { FriendsScreen(vm) }
+            composable(TopDest.Friends.route) { FriendsScreen() }
             composable(TopDest.Profile.route) { ProfileScreen() }
         }
     }

@@ -207,25 +207,6 @@ private fun SearchBarFriends(query: String, onQueryChange: (String) -> Unit) {
     )
 }
 
-@Composable
-private fun SectionHeader(title: String, count: Int) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkText)
-        Spacer(Modifier.width(8.dp))
-        Surface(shape = RoundedCornerShape(50), color = ChipBg) {
-            Text(count.toString(), fontSize = 12.sp, color = PrimaryPurple, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
-        }
-    }
-}
-
-@Composable
-private fun EmptyHint(text: String) {
-    Text(text, color = MutedText, fontSize = 14.sp, modifier = Modifier.padding(vertical = 4.dp))
-}
 
 @Composable
 private fun FriendCard(
