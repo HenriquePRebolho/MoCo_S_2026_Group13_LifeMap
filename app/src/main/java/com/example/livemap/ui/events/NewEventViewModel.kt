@@ -5,10 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.example.livemap.data.model.Event
 import com.example.livemap.data.repository.AuthRepository
 import com.example.livemap.data.repository.EventRepository
+import com.example.livemap.data.model.User
+import com.example.livemap.data.repository.UserRepository
+import com.example.livemap.data.repository.FriendshipRepository
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Date
 
@@ -21,11 +28,34 @@ sealed class NewEventState {
 
 class NewEventViewModel(
     private val eventRepository: EventRepository = EventRepository(),
-    private val authRepository: AuthRepository = AuthRepository()
+    private val authRepository: AuthRepository = AuthRepository(),
+    private val userRepository: UserRepository = UserRepository(),
+    private val friendshipRepository: FriendshipRepository = FriendshipRepository()
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<NewEventState>(NewEventState.Idle)
     val state: StateFlow<NewEventState> = _state.asStateFlow()
+
+    private val currentUid = authRepository.currentUser()?.uid
+
+    val allUsers: StateFlow<List<User>> = userRepository.observeAllUsers()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val friends: StateFlow<List<User>> = if (currentUid == null) {
+        MutableStateFlow(emptyList())
+    } else {
+        combine(
+            allUsers,
+            friendshipRepository.observeFriendships(currentUid)
+        ) { users, friendships ->
+            val friendIds = friendships
+                .filter { it.status == "accepted" }
+                .flatMap { it.userIds }
+                .filter { it != currentUid }
+                .toSet()
+            users.filter { it.uid in friendIds }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
 
     fun createEvent(
         name: String,

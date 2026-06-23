@@ -5,10 +5,16 @@ import androidx.lifecycle.viewModelScope
 import com.example.livemap.data.model.Event
 import com.example.livemap.data.repository.AuthRepository
 import com.example.livemap.data.repository.EventRepository
+import com.example.livemap.data.model.User
+import com.example.livemap.data.repository.UserRepository
+import com.example.livemap.data.repository.FriendshipRepository
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 sealed class EventDetailState {
@@ -20,13 +26,35 @@ sealed class EventDetailState {
 class EventDetailViewModel(
     private val eventId: String,
     private val eventRepository: EventRepository = EventRepository(),
-    private val authRepository: AuthRepository = AuthRepository()
+    private val authRepository: AuthRepository = AuthRepository(),
+    private val userRepository: UserRepository = UserRepository(),
+    private val friendshipRepository: FriendshipRepository = FriendshipRepository()
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<EventDetailState>(EventDetailState.Loading)
     val state: StateFlow<EventDetailState> = _state.asStateFlow()
 
     private val currentUid = authRepository.currentUser()?.uid
+
+    val allUsers: StateFlow<List<User>> = userRepository.observeAllUsers()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val friends: StateFlow<List<User>> = if (currentUid == null) {
+        MutableStateFlow(emptyList())
+    } else {
+        combine(
+            allUsers,
+            friendshipRepository.observeFriendships(currentUid)
+        ) { users, friendships ->
+            val friendIds = friendships
+                .filter { it.status == "accepted" }
+                .flatMap { it.userIds }
+                .filter { it != currentUid }
+                .toSet()
+            users.filter { it.uid in friendIds }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
+
 
     init {
         loadEvent()
@@ -72,13 +100,22 @@ class EventDetailViewModel(
         if (currentUid == null || (_state.value as? EventDetailState.Loaded)?.isOwner != true) return
 
         viewModelScope.launch {
-            // Re-using createEvent logic but for update. 
-            // Better to have a dedicated updateEvent in repository, let's check if it exists or add it.
-            // For now, let's assume we need to add updateEvent to EventRepository or use a generic update.
             eventRepository.updateEvent(eventId, updatedEvent).onSuccess {
                 loadEvent()
             }.onFailure { e ->
                 _state.value = EventDetailState.Error(e.localizedMessage ?: "Failed to update event")
+            }
+        }
+    }
+
+    fun deleteEvent(onSuccess: () -> Unit) {
+        if (currentUid == null || (_state.value as? EventDetailState.Loaded)?.isOwner != true) return
+
+        viewModelScope.launch {
+            eventRepository.deleteEvent(eventId).onSuccess {
+                onSuccess()
+            }.onFailure { e ->
+                _state.value = EventDetailState.Error(e.localizedMessage ?: "Failed to delete event")
             }
         }
     }

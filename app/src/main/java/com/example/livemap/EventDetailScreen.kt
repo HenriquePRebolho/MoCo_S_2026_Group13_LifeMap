@@ -1,7 +1,9 @@
 package com.example.livemap
 
-import android.annotation.SuppressLint
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -25,9 +27,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.livemap.composables.DateTimePickerModal
 import com.example.livemap.composables.EventInfoField
+import com.example.livemap.composables.SearchResultField
+import com.example.livemap.composables.SimpleSearchBar
 import com.example.livemap.data.model.Event
+import com.example.livemap.data.model.User
 import com.example.livemap.ui.events.EventDetailState
 import com.example.livemap.ui.events.EventDetailViewModel
 import com.google.firebase.Timestamp
@@ -50,6 +56,8 @@ fun EventDetailScreen(
     )
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val allUsers by viewModel.allUsers.collectAsStateWithLifecycle()
+    val friends by viewModel.friends.collectAsStateWithLifecycle()
 
     Box(modifier = Modifier.fillMaxSize()) {
         when (val s = state) {
@@ -57,11 +65,14 @@ fun EventDetailScreen(
             is EventDetailState.Error -> Text(s.message, modifier = Modifier.align(Alignment.Center))
             is EventDetailState.Loaded -> EventDetailContent(
                 event = s.event,
+                allUsers = allUsers,
+                friends = friends,
                 isOwner = s.isOwner,
                 isJoined = s.isJoined,
                 onBack = onBack,
                 onToggleJoin = viewModel::toggleJoin,
-                onSave = viewModel::updateEvent
+                onSave = viewModel::updateEvent,
+                onDelete = { viewModel.deleteEvent(onSuccess = onBack) }
             )
         }
     }
@@ -71,13 +82,17 @@ fun EventDetailScreen(
 @Composable
 private fun EventDetailContent(
     event: Event,
+    allUsers: List<User>,
+    friends: List<User>,
     isOwner: Boolean,
     isJoined: Boolean,
     onBack: () -> Unit,
     onToggleJoin: () -> Unit,
-    onSave: (Event) -> Unit
+    onSave: (Event) -> Unit,
+    onDelete: () -> Unit
 ) {
     var isEditing by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     
     // Editable state
     var name by remember(event) { mutableStateOf(event.name) }
@@ -86,6 +101,7 @@ private fun EventDetailContent(
     var dateTime by remember(event) { mutableStateOf(event.dateTime) }
     var limitPeople by remember(event) { mutableStateOf(event.limitPeople.toString()) }
     var isPublic by remember(event) { mutableStateOf(event.isPublic) }
+    var participantIds by remember(event) { mutableStateOf(event.participantIds) }
 
     val context = LocalContext.current
 
@@ -187,7 +203,7 @@ private fun EventDetailContent(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(R.drawable.group), contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.Gray)
             Spacer(Modifier.width(8.dp))
-            Text("${event.participantIds.size} / ", fontSize = 16.sp)
+            Text("${participantIds.size} / ", fontSize = 16.sp)
             if (isEditing) {
                 OutlinedTextField(
                     value = limitPeople,
@@ -197,9 +213,51 @@ private fun EventDetailContent(
                     textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
                 )
             } else {
-                Text(if (event.limitPeople == 0) "Unlimited" else event.limitPeople.toString(), fontSize = 16.sp)
+                Text(if (limitPeople.toIntOrNull() == 0) "Unlimited" else limitPeople, fontSize = 16.sp)
             }
             Text(" joined", fontSize = 16.sp)
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Participants / Invite Friends
+        Text("Participants", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        
+        if (isEditing && isOwner) {
+            var searchFriendQuery by remember { mutableStateOf("") }
+            val searchBarState = remember { androidx.compose.foundation.text.input.TextFieldState(searchFriendQuery) }
+            val availableFriends = friends.filter { it.uid !in participantIds }
+
+            SimpleSearchBar(
+                label = "Invite friends",
+                textFieldState = searchBarState,
+                onSearch = { searchFriendQuery = it },
+                searchResults = availableFriends.map { it.displayName },
+                onFriendClicked = { name ->
+                    val user = availableFriends.find { it.displayName == name }
+                    if (user != null) {
+                        val limit = limitPeople.toIntOrNull() ?: 0
+                        if (limit == 0 || participantIds.size < limit) {
+                            participantIds = participantIds + user.uid
+                        } else {
+                            Toast.makeText(context, "People limit reached", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            )
+        }
+
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            participantIds.forEach { uid ->
+                val user = allUsers.find { it.uid == uid }
+                SearchResultField(
+                    valor = user?.displayName ?: "Unknown",
+                    isEditing = isEditing && isOwner,
+                    onRemoveFriendClicked = { _ ->
+                        participantIds = participantIds - uid
+                    }
+                )
+            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -222,7 +280,8 @@ private fun EventDetailContent(
                                 locationText = locationText,
                                 dateTime = dateTime,
                                 limitPeople = limitPeople.toIntOrNull() ?: 0,
-                                isPublic = isPublic
+                                isPublic = isPublic,
+                                participantIds = participantIds
                             ))
                             isEditing = false
                         },
@@ -238,6 +297,14 @@ private fun EventDetailContent(
                 ) {
                     Text("Edit Event")
                 }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete Event")
+                }
             }
         } else {
             Button(
@@ -250,5 +317,29 @@ private fun EventDetailContent(
                 Text(if (isJoined) "Leave Event" else "Join Event")
             }
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Event") },
+            text = { Text("Are you sure you want to delete this event? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDelete()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
