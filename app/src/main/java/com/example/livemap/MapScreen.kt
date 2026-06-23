@@ -565,7 +565,7 @@ fun MapScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Ver información del evento")
+                        Text("See event information")
                     }
                 }
             }

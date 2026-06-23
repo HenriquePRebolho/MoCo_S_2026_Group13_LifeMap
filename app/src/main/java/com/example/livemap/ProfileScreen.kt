@@ -138,36 +138,10 @@ fun ProfileScreen(
 
     var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
-    var showSourceDialog by remember { mutableStateOf(false) }
 
     // State for delete account
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deletePassword by remember { mutableStateOf("") }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri -> if (uri != null) capturedImageUri = uri }
-    )
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture(),
-        onResult = { success -> if (success) capturedImageUri = tempImageUri }
-    )
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                val uri = createImageUri(context)
-                if (uri != null) {
-                    tempImageUri = uri
-                    cameraLauncher.launch(uri)
-                }
-            } else {
-                Toast.makeText(context, "Camera permission is required to take photos", Toast.LENGTH_SHORT).show()
-            }
-        }
-    )
 
     Box(modifier = Modifier.fillMaxSize().background(ScreenBg)) {
         Column(
@@ -205,7 +179,7 @@ fun ProfileScreen(
                 ) {
                     // Profile Image
                     Surface(
-                        onClick = { if (isEditing) showSourceDialog = true },
+                        onClick = {  },
                         enabled = isEditing,
                         modifier = Modifier.size(100.dp),
                         shape = CircleShape,
@@ -498,35 +472,6 @@ fun ProfileScreen(
             }
         )
     }
-
-    if (showSourceDialog) {
-        AlertDialog(
-            onDismissRequest = { showSourceDialog = false },
-            title = { Text("Update Profile Picture") },
-            text = { Text("Choose how you want to update your profile picture.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showSourceDialog = false
-                    galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                }) { Text("Gallery") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showSourceDialog = false
-                    when (PackageManager.PERMISSION_GRANTED) {
-                        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) -> {
-                            val uri = createImageUri(context)
-                            if (uri != null) {
-                                tempImageUri = uri
-                                cameraLauncher.launch(uri)
-                            }
-                        }
-                        else -> permissionLauncher.launch(Manifest.permission.CAMERA)
-                    }
-                }) { Text("Camera") }
-            }
-        )
-    }
 }
 
 @Composable
@@ -586,7 +531,7 @@ private fun checkIsOnline(context: Context): Boolean {
 @Composable
 fun PreviewProfileScreen() {
     LiveMapTheme(dynamicColor = false) {
-        Surface(color = ScreenBg) {
+        Surface(color = DarkText) {
             ProfileScreen()
         }
     }

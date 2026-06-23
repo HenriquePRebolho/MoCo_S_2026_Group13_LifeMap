@@ -198,8 +198,6 @@ private fun LoadedContent(
                 locationAvailable = locationAvailable,
                 distance = distance, onDistance = { onDistance(if (distance == it) null else it) },
                 category = category, onCategory = { onCategory(if (category == it) null else it) },
-                age = age,           onAge = { onAge(if (age == it) null else it) },
-                gender = gender,     onGender = { onGender(if (gender == it) null else it) },
                 maxPeople = maxPeople, onMaxPeople = { onMaxPeople(if (maxPeople == it) null else it) },
                 time = time,         onTime = { onTime(if (time == it) null else it) },
                 onClear = onClear
@@ -269,8 +267,6 @@ private fun FiltersCard(
     locationAvailable: Boolean,
     distance: String?, onDistance: (String) -> Unit,
     category: String?, onCategory: (String) -> Unit,
-    age: String?, onAge: (String) -> Unit,
-    gender: String?, onGender: (String) -> Unit,
     maxPeople: String?, onMaxPeople: (String) -> Unit,
     time: String?, onTime: (String) -> Unit,
     onClear: () -> Unit
@@ -307,8 +303,6 @@ private fun FiltersCard(
                 disabledMessage = "Location unavailable"
             )
             FilterAccordion("Category",   CategoryOptions,  category,  onCategory)
-            FilterAccordion("Age range",  AgeOptions,       age,       onAge)
-            FilterAccordion("Gender",     GenderOptions,    gender,    onGender)
             FilterAccordion("Max people", MaxPeopleOptions, maxPeople, onMaxPeople)
             FilterAccordion("Time",       TimeOptions,      time,      onTime)
         }

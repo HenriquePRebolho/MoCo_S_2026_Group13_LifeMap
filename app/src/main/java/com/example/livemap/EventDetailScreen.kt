@@ -582,7 +582,7 @@ private fun DetailInfoRow(icon: Any, text: String) {
 @Composable
 private fun DetailEditField(label: String, value: String, onChange: (String) -> Unit, icon: Any, keyboardOptions: KeyboardOptions = KeyboardOptions.Default) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, fontSize = 12.sp, color = SageText, fontWeight = FontWeight.Medium)
+        Text(label, fontSize = 12.sp, color = SageText , fontWeight = FontWeight.Medium)
         OutlinedTextField(
             value = value,
             onValueChange = onChange,
