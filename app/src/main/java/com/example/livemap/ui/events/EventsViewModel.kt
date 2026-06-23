@@ -116,8 +116,8 @@ class EventsViewModel(
         id = id,
         name = name,
         category = category,
-        date = startAt.toDisplayDate(),
-        time = startAt.toDisplayTime(),
+        date = dateTime.toDisplayDate(),
+        time = dateTime.toDisplayTime(),
         location = locationText,
         // Placeholder until we wire in the user's GPS location.
         distanceKm = 0.0,
@@ -127,7 +127,7 @@ class EventsViewModel(
         maxPeople = limitPeople,
         ownedByMe = ownerId == uid,
         joinedByMe = participantIds.contains(uid),
-        timeBucket = startAt.toTimeBucket()
+        timeBucket = dateTime.toTimeBucket()
     )
 
     private fun List<EventUi>.applyFilters(f: EventFilters): List<EventUi> = filter { ev ->
