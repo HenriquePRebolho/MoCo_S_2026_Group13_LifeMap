@@ -172,35 +172,20 @@ class AuthViewModel(
 
     fun deleteAccount() {
 
-        _formState.value = FormState.Submitting
-
         viewModelScope.launch {
 
             val currentState = authState.value
-            val uid = (currentState as? AuthState.Authenticated)?.uid ?: run {
-                _formState.value = FormState.Error("No authenticated user.")
-                return@launch
-            }
+            val uid = (currentState as? AuthState.Authenticated)?.uid ?: return@launch
 
-            val profileResult = userRepository.deleteUserProfile(uid)
+            val firestoreResult = userRepository.deleteUserProfile(uid)
 
-            if (profileResult.isFailure) {
-                _formState.value = FormState.Error("Failed to delete profile.")
-                return@launch
-            }
+            println("Firestore result = $firestoreResult")
 
             val authResult = authRepository.deleteCurrentUser()
 
-            if (authResult.isFailure) {
-                _formState.value = FormState.Error(
-                    authResult.exceptionOrNull()?.localizedMessage
-                        ?: "Failed to delete account."
-                )
-                return@launch
-            }
+            println("Auth result = $authResult")
 
-            // Account successfully deleted
-            _formState.value = FormState.Success
+            authResult.exceptionOrNull()?.printStackTrace()
         }
     }
 }
