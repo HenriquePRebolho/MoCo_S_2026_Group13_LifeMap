@@ -64,10 +64,10 @@ fun NewScreenBackup(vm: CounterViewModel) {
 @SuppressLint("ViewModelConstructorInComposable")
 @Preview(showBackground = true)
 @Composable
-fun NewScreenBackup() {
+fun PreviewNewScreenBackup() {
     LiveMapTheme(dynamicColor = false) {
         Surface(color = MaterialTheme.colorScheme.background) {
-            NewScreen(vm = CounterViewModel())
+            NewScreen()
         }
     }
 }
