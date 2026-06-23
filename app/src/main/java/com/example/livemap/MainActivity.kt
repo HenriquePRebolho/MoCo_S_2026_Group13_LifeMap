@@ -36,6 +36,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.example.livemap.data.repository.AuthState
 import com.example.livemap.ui.auth.AuthNavHost
 import com.example.livemap.ui.auth.AuthViewModel
@@ -144,7 +146,17 @@ fun App(modifier: Modifier = Modifier) {
             composable(TopDest.Events.route) { EventsScreen() }
             composable(TopDest.Map.route) { MapScreen(vm) }
             composable(TopDest.New.route) { NewScreen(vm) }
-            composable(TopDest.Friends.route) { FriendsScreen() }
+            composable(TopDest.Friends.route) {
+                FriendsScreen(
+                    onNavigateToFriendDetail = { uid -> navController.navigate("friends/$uid") }
+                )
+            }
+            composable(
+                route = "friends/{uid}",
+                arguments = listOf(navArgument("uid") { type = NavType.StringType })
+            ) {
+                FriendDetailScreen(onBack = { navController.popBackStack() })
+            }
             composable(TopDest.Profile.route) { ProfileScreen() }
         }
     }
