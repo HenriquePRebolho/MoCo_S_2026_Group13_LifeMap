@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -33,13 +34,11 @@ import androidx.navigation.compose.rememberNavController
 import com.example.livemap.data.repository.AuthState
 import com.example.livemap.ui.auth.AuthNavHost
 import com.example.livemap.ui.auth.AuthViewModel
-import com.example.livemap.FriendsScreen
 import com.example.livemap.ui.theme.LiveMapTheme
-import androidx.navigation.NavType
-import androidx.navigation.navArgument
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()

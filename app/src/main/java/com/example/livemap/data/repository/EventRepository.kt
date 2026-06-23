@@ -13,7 +13,7 @@ import kotlinx.coroutines.tasks.await
  *
  * Design choice for v1 — we observe ALL events with one listener and let the
  * ViewModel partition them (nearby / joined / owned). This is fine while the
- * total number of events is small (academic project). At scale we'd switch
+ * total number of events is small (academic project). At scale, we'd switch
  * to scoped queries (e.g. server-side filtering by location with geohash).
  */
 class EventRepository(
@@ -58,31 +58,32 @@ class EventRepository(
         val newRef = eventsCollection.document()
         val data = mapOf(
             "name" to event.name,
-            "nameLower" to event.name.lowercase(),
+            //"nameLower" to event.name.lowercase(),
             "description" to event.description,
             "ownerId" to event.ownerId,
-            "ownerName" to event.ownerName,
-            "ownerPhotoUrl" to event.ownerPhotoUrl,
-            "startAt" to event.startAt,
-            "endAt" to event.endAt,
+            "dateTime" to event.dateTime,
+            //"ownerName" to event.ownerName,
+            //"ownerPhotoUrl" to event.ownerPhotoUrl,
+            //"startAt" to event.startAt,
+            //"endAt" to event.endAt,
             "locationText" to event.locationText,
             "locationLat" to event.locationLat,
             "locationLng" to event.locationLng,
             "geohash" to event.geohash,
-            "photoUrl" to event.photoUrl,
+            //"photoUrl" to event.photoUrl,
             "isPublic" to event.isPublic,
             "limitPeople" to event.limitPeople,
-            "participantsCount" to 0,
-            "participantIds" to emptyList<String>(),
+            //"participantsCount" to 0,
+            "participantIds" to event.participantIds,
             "tags" to event.tags,
-            "languages" to event.languages,
-            "restrictions" to event.restrictions,
-            "itemsToBring" to event.itemsToBring,
-            "contactPhone" to event.contactPhone,
-            "contactInstagram" to event.contactInstagram,
-            "category" to event.category,
-            "ageRange" to event.ageRange,
-            "genderPref" to event.genderPref,
+            //"languages" to event.languages,
+            //"restrictions" to event.restrictions,
+            //"itemsToBring" to event.itemsToBring,
+            //"contactPhone" to event.contactPhone,
+            //"contactInstagram" to event.contactInstagram,
+            //"category" to event.category,
+            //"ageRange" to event.ageRange,
+            //"genderPref" to event.genderPref,
             "createdAt" to FieldValue.serverTimestamp(),
             "updatedAt" to FieldValue.serverTimestamp()
         )

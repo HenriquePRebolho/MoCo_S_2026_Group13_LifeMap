@@ -72,6 +72,7 @@ dependencies {
     implementation ("androidx.compose.material:material-icons-extended")
     implementation("androidx.fragment:fragment-ktx:1.8.9")
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     // ── Firebase ───────────────────────────────────────────────────────
     // BoM (Bill of Materials) - declares ONE version, all firebase-*
     implementation(platform(libs.firebase.bom))

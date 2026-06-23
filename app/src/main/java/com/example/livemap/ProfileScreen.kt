@@ -1,8 +1,13 @@
 package com.example.livemap
 
+// TODO: set fields to not be editable
+// TODO: create button that allow changes, then converts into confirm and cancel button
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -10,8 +15,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,9 +39,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,18 +61,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.livemap.ui.theme.LiveMapTheme
-import com.example.livemap.aux_files.languages
-import com.example.livemap.ui.profile.ProfileViewModel
-
-// TODO: set fields to not be editable
-// TODO: create button that allow changes, then converts into confirm and cancel button
 import coil.compose.AsyncImage
 import com.example.livemap.aux.createImageUri
+import com.example.livemap.aux_files.event_types
+import com.example.livemap.aux_files.languages
 import com.example.livemap.composables.EventInfoField
 import com.example.livemap.composables.SimpleSearchBar
-import com.example.livemap.aux_files.event_types
 import com.example.livemap.ui.auth.AuthViewModel
+import com.example.livemap.ui.profile.ProfileViewModel
+import com.example.livemap.ui.theme.LiveMapTheme
 
 // Saver for List<String> edit state so it can be kept by rememberSaveable
 // (the default autoSaver can't persist an arbitrary List).
@@ -91,6 +95,9 @@ fun ProfileScreen(
 
     val user = userState!!
 
+    val context = LocalContext.current
+    val isOnline by observeConnectivity(context)
+
     // --- State for editing ---
     // rememberSaveable (not plain remember) so an in-progress edit survives a
     // bottom-tab switch and configuration changes; plain remember was discarded
@@ -103,8 +110,11 @@ fun ProfileScreen(
     var userPhone by rememberSaveable(user.uid) { mutableStateOf(user.phone) }
     var addedHobbies by rememberSaveable(user.uid, stateSaver = stringListSaver) { mutableStateOf(user.hobbies) }
     var addedLanguages by rememberSaveable(user.uid, stateSaver = stringListSaver) { mutableStateOf(user.languages) }
+    var hobbiesOptions by remember(user.uid) { mutableStateOf(event_types.filter { it !in addedHobbies }) }
+    var languagesOptions by remember(user.uid) { mutableStateOf(languages.filter { it !in addedLanguages }) }
+    val hobbySearchBarState = remember(user.uid) { TextFieldState("") }
+    val languageSearchBarState = remember(user.uid) { TextFieldState("") }
 
-    val context = LocalContext.current
     var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
     var showSourceDialog by remember { mutableStateOf(false) }
@@ -236,15 +246,12 @@ fun ProfileScreen(
 
 
         // TAGS ////////////////////////////////////////////////////////////////
-        var hobbiesOptions by remember { mutableStateOf(event_types.filter { it !in addedHobbies }) }
-        var searchHobbyQuery by remember { mutableStateOf("") }
-        val hobbySearchBarState = remember { TextFieldState(searchHobbyQuery) }
         Text("Hobbies", modifier = Modifier.padding(top=4.dp))
         if (isEditing) {
             SimpleSearchBar(
                 label = "Hobbies",
                 textFieldState = hobbySearchBarState,
-                onSearch = { searchHobbyQuery = it },
+                onSearch = { },
                 searchResults = hobbiesOptions,
                 onFriendClicked = { hobby -> 
                     addedHobbies = addedHobbies + hobby
@@ -289,15 +296,12 @@ fun ProfileScreen(
 
 
         // LANGUAGES //////////////////////////////////////////////////////////////
-        var languagesOptions by remember { mutableStateOf(languages.filter { it !in addedLanguages }) }
-        var searchLanguageQuery by remember { mutableStateOf("") }
-        val languageSearchBarState = remember { TextFieldState(searchLanguageQuery) }
         Text("Languages", modifier = Modifier.padding(top=4.dp))
         if (isEditing) {
             SimpleSearchBar(
                 label = "Languages",
                 textFieldState = languageSearchBarState,
-                onSearch = { searchLanguageQuery = it },
+                onSearch = { },
                 searchResults = languagesOptions,
                 onFriendClicked = { lang -> 
                     addedLanguages = addedLanguages + lang
@@ -376,6 +380,10 @@ fun ProfileScreen(
                     userPhone = user.phone
                     addedHobbies = user.hobbies
                     addedLanguages = user.languages
+                    hobbiesOptions = event_types.filter { it !in user.hobbies }.sorted()
+                    languagesOptions = languages.filter { it !in user.languages }.sorted()
+                    hobbySearchBarState.edit { replace(0, length, "") }
+                    languageSearchBarState.edit { replace(0, length, "") }
                     isEditing = false
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -383,6 +391,7 @@ fun ProfileScreen(
                 Text("Discard changes")
             }
             Button(
+                enabled = isOnline,
                 onClick = {
                     val updates = mapOf(
                         "displayName" to name,
@@ -413,14 +422,15 @@ fun ProfileScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Save changes")
+                Text(if (isOnline) "Save changes" else "No internet connection")
             }
         } else {
             Button(
+                enabled = isOnline,
                 onClick = { isEditing = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = "Edit profile")
+                Text(text = if (isOnline) "Edit profile" else "No internet connection")
             }
         }
         ///////////////////////////////////////////////////////////////////////////
@@ -433,6 +443,27 @@ fun ProfileScreen(
     }
 }
 
+
+@Composable
+fun observeConnectivity(context: Context): State<Boolean> {
+    return produceState(initialValue = checkIsOnline(context)) {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) { value = true }
+            override fun onLost(network: android.net.Network) { value = false }
+        }
+        connectivityManager.registerDefaultNetworkCallback(callback)
+        awaitDispose {
+            connectivityManager.unregisterNetworkCallback(callback)
+        }
+    }
+}
+
+private fun checkIsOnline(context: Context): Boolean {
+    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val capabilities = cm.getNetworkCapabilities(cm.activeNetwork)
+    return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+}
 
 @Composable
 fun ProfileInfoButton(field: String, value: String, svg: Int, color: Color) {
