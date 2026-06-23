@@ -40,9 +40,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -66,6 +65,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -471,6 +471,66 @@ private fun InfoRow(icon: Int, label: String, value: String) {
         Column {
             Text(label, fontSize = 11.sp, color = MutedText)
             Text(value, fontSize = 15.sp, color = DarkText, fontWeight = FontWeight.Medium)
+        }
+
+        // Permanently deletes the user's account and all profile data.
+        var showDeleteDialog by remember { mutableStateOf(false) }
+        var deletePassword by remember { mutableStateOf("") }
+
+        Button(
+            onClick = { showDeleteDialog = true },
+            enabled = isOnline,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (isOnline) "Delete Account" else "No internet connection")
+        }
+
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showDeleteDialog = false
+                    deletePassword = ""
+                },
+                title = { Text("Delete account") },
+                text = {
+                    Column {
+                        Text("This permanently deletes your account and profile. This can't be undone. Enter your password to confirm.")
+                        OutlinedTextField(
+                            value = deletePassword,
+                            onValueChange = { deletePassword = it },
+                            label = { Text("Password") },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        authViewModel.deleteAccount(deletePassword) { result ->
+                            result
+                                .onSuccess {
+                                    Toast.makeText(context, "Account deleted", Toast.LENGTH_SHORT).show()
+                                }
+                                .onFailure { e ->
+                                    Toast.makeText(
+                                        context,
+                                        "Couldn't delete account: ${e.localizedMessage ?: "unknown error"}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                        }
+                        showDeleteDialog = false
+                        deletePassword = ""
+                    }) { Text("Delete") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showDeleteDialog = false
+                        deletePassword = ""
+                    }) { Text("Cancel") }
+                }
+            )
         }
     }
 }

@@ -138,4 +138,11 @@ class UserRepository(
         }
         awaitClose { registration.remove() }
     }
+
+    /**
+     * Deletes the user's Firestore profile document.
+     */
+    suspend fun deleteUserProfile(uid: String): Result<Unit> = runCatching {
+        usersCollection.document(uid).delete().await()
+    }
 }
