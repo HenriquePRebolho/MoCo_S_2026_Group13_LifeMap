@@ -39,9 +39,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +62,14 @@ import com.example.livemap.R
 import com.example.livemap.aux_files.event_types
 import com.example.livemap.composables.DateTimePickerModal
 import com.example.livemap.composables.SimpleSearchBar
+import com.example.livemap.composables.TextField
+import com.example.livemap.aux_files.event_types
+import com.example.livemap.aux_files.localDateTimeSaver
+import com.example.livemap.aux_files.stringListSaver
+import com.example.livemap.ui.theme.LiveMapTheme
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.livemap.ui.events.NewEventState
 import com.example.livemap.ui.events.NewEventViewModel
 import com.example.livemap.ui.theme.LiveMapTheme
@@ -82,12 +92,18 @@ private val DarkText     = Color(0xFF3D4A2A)
 private val BodyText     = Color(0xFF5C3522)
 private val MutedText    = Color(0xFF8B5E47)
 private val SageText     = Color(0xFF6B7855)
+/** Result handed back from the map location picker (see LocationPickerScreen). */
+data class PickedLocation(val lat: Double, val lng: Double, val address: String)
 
 @SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewScreen(
-    newEventViewModel: NewEventViewModel = viewModel()
+    vm: CounterViewModel,
+    newEventViewModel: NewEventViewModel = viewModel(),
+    onPickLocation: () -> Unit = {},
+    pickedLocation: PickedLocation? = null,
+    onPickedLocationConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val state by newEventViewModel.state.collectAsState()
@@ -286,7 +302,56 @@ fun NewScreen(
                     eventLocation.isNotBlank() &&
                     selectedDateTime != null
 
-            val isSubmitting = state is NewEventState.Submitting
+        
+      val isSubmitting = state is NewEventState.Submitting
+      
+      // LOCATION /////////////////////////////////////////////////////////
+        var eventLocation by rememberSaveable { mutableStateOf("") }
+        // Coordinates resolved from the map picker. Null until the user picks a
+        // point; cleared when the text is edited manually so the address gets
+        // re-validated (geocoded) on submit.
+        var eventLat by rememberSaveable { mutableStateOf<Double?>(null) }
+        var eventLng by rememberSaveable { mutableStateOf<Double?>(null) }
+
+        // When the picker returns a result, fill the field + store coordinates.
+        LaunchedEffect(pickedLocation) {
+            pickedLocation?.let {
+                eventLocation = it.address
+                eventLat = it.lat
+                eventLng = it.lng
+                onPickedLocationConsumed()
+            }
+        }
+
+        TextField("Event Location", eventLocation, onChange = {
+            eventLocation = it
+            // Manual edit invalidates the picked coordinates.
+            eventLat = null
+            eventLng = null
+        })
+        TextButton(onClick = onPickLocation) {
+            Icon(
+                painter = painterResource(R.drawable.location_on),
+                contentDescription = null
+            )
+            Spacer(modifier = Modifier.size(4.dp))
+            Text("Select on map")
+        }
+        ////////////////////////////////////////////////////////////////////
+
+
+        // DATETIME ////////////////////////////////////////////////////////
+        var showPicker by remember { mutableStateOf(false) }
+        var selectedDateTime by rememberSaveable(stateSaver = localDateTimeSaver) { mutableStateOf<LocalDateTime?>(null) }
+
+        // Trigger field (reuses your existing PopUpTextField)
+        PopUpTextField(
+            label = "Date & Time",
+            valor = selectedDateTime
+                ?.format(DateTimeFormatter.ofPattern("MMM dd, yyyy - HH:mm"))
+                ?: "",
+            onClick = { showPicker = true }
+        )
 
             Button(
                 onClick = {

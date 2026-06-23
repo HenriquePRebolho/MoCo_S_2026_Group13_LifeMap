@@ -3,6 +3,7 @@ package com.example.livemap.ui.events
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.livemap.data.model.Event
+import com.example.livemap.aux_files.geocodeLocation
 import com.example.livemap.data.repository.AuthRepository
 import com.example.livemap.data.repository.EventRepository
 import com.example.livemap.data.model.User
@@ -65,7 +66,9 @@ class NewEventViewModel(
         isPublic: Boolean,
         limitPeople: Int,
         tags: List<String>,
-        invitedFriends: List<String>
+        invitedFriends: List<String>,
+        locationLat: Double? = null,
+        locationLng: Double? = null
     ) {
         val currentUser = authRepository.currentUser()
         if (currentUser == null) {
@@ -76,15 +79,28 @@ class NewEventViewModel(
         _state.value = NewEventState.Submitting
 
         viewModelScope.launch {
+            // Resolve coordinates: prefer the ones picked on the map; otherwise
+            // geocode the manually typed address to validate it.
+            var lat = locationLat
+            var lng = locationLng
+            if (lat == null || lng == null) {
+                val geo = geocodeLocation(locationText)
+                if (geo == null) {
+                    _state.value = NewEventState.Error("Invalid location")
+                    return@launch
+                }
+                lat = geo.lat
+                lng = geo.lng
+            }
+
             val event = Event(
                 name = name,
                 description = description,
                 ownerId = currentUser.uid,
                 dateTime = dateTime?.let { Timestamp(it) },
                 locationText = locationText,
-                // Default coordinates for now, or we could geocode if we had a service ready
-                locationLat = 0.0,
-                locationLng = 0.0,
+                locationLat = lat,
+                locationLng = lng,
                 geohash = "",
                 isPublic = isPublic,
                 limitPeople = limitPeople,
