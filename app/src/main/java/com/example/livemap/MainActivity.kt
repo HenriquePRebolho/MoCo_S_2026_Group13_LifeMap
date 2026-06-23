@@ -36,6 +36,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.example.livemap.data.repository.AuthState
 import com.example.livemap.ui.auth.AuthNavHost
 import com.example.livemap.ui.auth.AuthViewModel
@@ -141,11 +143,35 @@ fun App(modifier: Modifier = Modifier) {
             startDestination = TopDest.Events.route,
             modifier = Modifier.padding(padding)
         ) {
-            composable(TopDest.Events.route) { EventsScreen() }
+            composable(TopDest.Events.route) { 
+                EventsScreen(
+                    onNavigateToDetail = { eventId -> navController.navigate("events/$eventId") }
+                ) 
+            }
             composable(TopDest.Map.route) { MapScreen(vm) }
             composable(TopDest.New.route) { NewScreen(vm) }
-            composable(TopDest.Friends.route) { FriendsScreen() }
+            composable(TopDest.Friends.route) {
+                FriendsScreen(
+                    onNavigateToFriendDetail = { uid -> navController.navigate("friends/$uid") }
+                )
+            }
+            composable(
+                route = "friends/{uid}",
+                arguments = listOf(navArgument("uid") { type = NavType.StringType })
+            ) {
+                FriendDetailScreen(onBack = { navController.popBackStack() })
+            }
             composable(TopDest.Profile.route) { ProfileScreen() }
+            composable(
+                route = "events/{eventId}",
+                arguments = listOf(navArgument("eventId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val eventId = backStackEntry.arguments?.getString("eventId") ?: ""
+                EventDetailScreen(
+                    eventId = eventId,
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }

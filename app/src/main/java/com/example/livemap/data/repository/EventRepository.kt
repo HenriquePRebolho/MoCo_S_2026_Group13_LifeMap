@@ -73,17 +73,11 @@ class EventRepository(
             //"photoUrl" to event.photoUrl,
             "isPublic" to event.isPublic,
             "limitPeople" to event.limitPeople,
-            //"participantsCount" to 0,
             "participantIds" to event.participantIds,
             "tags" to event.tags,
-            //"languages" to event.languages,
-            //"restrictions" to event.restrictions,
-            //"itemsToBring" to event.itemsToBring,
-            //"contactPhone" to event.contactPhone,
-            //"contactInstagram" to event.contactInstagram,
-            //"category" to event.category,
-            //"ageRange" to event.ageRange,
-            //"genderPref" to event.genderPref,
+            "category" to event.category,
+            "ageRange" to event.ageRange,
+            "genderPref" to event.genderPref,
             "createdAt" to FieldValue.serverTimestamp(),
             "updatedAt" to FieldValue.serverTimestamp()
         )
@@ -119,5 +113,20 @@ class EventRepository(
                 )
             )
             .await()
+    }
+
+    suspend fun updateEvent(eventId: String, event: Event): Result<Unit> = runCatching {
+        val data = mapOf(
+            "name" to event.name,
+            "description" to event.description,
+            "dateTime" to event.dateTime,
+            "locationText" to event.locationText,
+            "isPublic" to event.isPublic,
+            "limitPeople" to event.limitPeople,
+            "tags" to event.tags,
+            "category" to event.category,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+        eventsCollection.document(eventId).update(data).await()
     }
 }

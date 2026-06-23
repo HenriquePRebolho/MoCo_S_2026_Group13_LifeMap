@@ -20,10 +20,10 @@ sealed class FriendsState {
     data class Loaded(
         val myFriends: List<FriendUi>,
         val incomingRequests: List<FriendUi>,
+        // Pending requests the current user SENT (status pending, requestedBy == me).
+        // Rendered as "Request Sent" so the relationship is visible to the sender.
+        val outgoingRequests: List<FriendUi>,
         val suggested: List<FriendUi>,
-        // Friendship doc IDs for which we sent requests in this session
-        // (used to render "Request Sent" instead of "Add Friend")
-        val sentRequestFriendshipIds: Set<String>,
         val myInterests: List<String>
     ) : FriendsState()
     data class Error(val message: String) : FriendsState()
