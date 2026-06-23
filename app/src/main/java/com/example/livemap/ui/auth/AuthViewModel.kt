@@ -140,4 +140,51 @@ class AuthViewModel(
     fun logout() {
         authRepository.signOut()
     }
+
+    /**
+     * Sends a password reset email.
+     */
+    fun resetPassword(email: String) {
+
+        println("RESET PASSWORD CALLED")
+
+        if (email.isBlank()) {
+            _formState.value = FormState.Error("Please enter your email.")
+            return
+        }
+
+        _formState.value = FormState.Submitting
+
+        viewModelScope.launch {
+
+            authRepository
+                .sendPasswordResetEmail(email.trim())
+                .onSuccess {
+                    _formState.value = FormState.Success
+                }
+                .onFailure { e ->
+                    _formState.value = FormState.Error(
+                        e.localizedMessage ?: "Unable to send reset email."
+                    )
+                }
+        }
+    }
+
+    fun deleteAccount() {
+        println("DELETE ACCOUNT CALLED")
+
+        viewModelScope.launch {
+
+            val currentState = authState.value
+            val uid = (currentState as? AuthState.Authenticated)?.uid ?: run {
+                println("NO AUTHENTICATED USER")
+                return@launch
+            }
+
+            println("UID = $uid")
+
+            userRepository.deleteUserProfile(uid)
+            authRepository.deleteCurrentUser()
+        }
+    }
 }

@@ -440,6 +440,16 @@ fun ProfileScreen(
             //  Icon(painterResource(R.drawable.logout), contentDescription = null)
             Text("Logout")
         }
+
+        // Permanently deletes the user's account and all profile data.
+        Button(
+            onClick = {
+                authViewModel.deleteAccount()
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Delete Account")
+        }
     }
 }
 
