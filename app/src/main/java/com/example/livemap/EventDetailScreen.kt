@@ -213,7 +213,7 @@ private fun EventDetailContent(
                     textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
                 )
             } else {
-                Text(if (limitPeople.toIntOrNull() == 0) "Unlimited" else limitPeople, fontSize = 16.sp)
+                Text(if (limitPeople.toIntOrNull() == 0) "-" else limitPeople, fontSize = 16.sp)
             }
             Text(" joined", fontSize = 16.sp)
         }
