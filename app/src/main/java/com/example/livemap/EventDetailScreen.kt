@@ -464,8 +464,8 @@ private fun EventDetailContent(
 
         item {
             if (isOwner) {
-                if (isEditing) {
-                    Column {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (isEditing) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -507,13 +507,13 @@ private fun EventDetailContent(
                             }
                         }
                         Spacer(Modifier.height(12.dp))
-                        TextButton(
-                            onClick = { showDeleteDialog = true },
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
-                        ) {
-                            Text("Delete Event")
-                        }
+                    }
+                    TextButton(
+                        onClick = { showDeleteDialog = true },
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                    ) {
+                        Text("Delete Event")
                     }
                 }
             } else {

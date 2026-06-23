@@ -136,21 +136,6 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        TextButton(
-            onClick = onNavigateToForgotPassword
-        ){
-        if (formState is FormState.Success) {
-            Text(
-                text = "Account deleted",
-                color = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }else{
-            Text("Forgot your password?")
-        }}
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         TextButton(onClick = onNavigateToRegister) {
             Text("Don't have an account? Sign up")
         }

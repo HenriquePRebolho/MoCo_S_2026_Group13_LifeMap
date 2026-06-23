@@ -157,8 +157,6 @@ private fun LoadedContent(
             FiltersCard(
                 distance = distance, onDistance = { onDistance(if (distance == it) null else it) },
                 category = category, onCategory = { onCategory(if (category == it) null else it) },
-                age = age,           onAge = { onAge(if (age == it) null else it) },
-                gender = gender,     onGender = { onGender(if (gender == it) null else it) },
                 maxPeople = maxPeople, onMaxPeople = { onMaxPeople(if (maxPeople == it) null else it) },
                 time = time,         onTime = { onTime(if (time == it) null else it) },
                 onClear = onClear
@@ -227,8 +225,6 @@ private inline fun androidx.compose.foundation.lazy.LazyListScope.items(
 private fun FiltersCard(
     distance: String?, onDistance: (String) -> Unit,
     category: String?, onCategory: (String) -> Unit,
-    age: String?, onAge: (String) -> Unit,
-    gender: String?, onGender: (String) -> Unit,
     maxPeople: String?, onMaxPeople: (String) -> Unit,
     time: String?, onTime: (String) -> Unit,
     onClear: () -> Unit
@@ -257,8 +253,6 @@ private fun FiltersCard(
             Spacer(Modifier.height(6.dp))
             FilterRow("Distance",   DistanceOptions,  distance,  onDistance)
             FilterRow("Category",   CategoryOptions,  category,  onCategory)
-            FilterRow("Age range",  AgeOptions,       age,       onAge)
-            FilterRow("Gender",     GenderOptions,    gender,    onGender)
             FilterRow("Max people", MaxPeopleOptions, maxPeople, onMaxPeople)
             FilterRow("Time",       TimeOptions,      time,      onTime)
         }
@@ -357,7 +351,7 @@ fun EventCard(
             .clickableNoRipple(onClick)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Text(event.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkText, modifier = Modifier.weight(1f))
+            Text(event.name, modifier = Modifier.fillMaxWidth(), color = DarkText, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             InfoLine(R.drawable.schedule, "${event.date} • ${event.time}")
             Spacer(Modifier.height(4.dp))
