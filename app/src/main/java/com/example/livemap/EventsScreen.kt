@@ -8,6 +8,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -328,6 +330,7 @@ fun EmptyHint(text: String) {
     Text(text, color = MutedText, fontSize = 14.sp, modifier = Modifier.padding(vertical = 4.dp))
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EventCard(
     event: EventUi,
@@ -354,27 +357,32 @@ fun EventCard(
             .clickableNoRipple(onClick)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(event.name, fontWeight = FontWeight.Bold, fontSize = 18.sp,
-                    color = DarkText, modifier = Modifier.weight(1f))
-                Surface(shape = RoundedCornerShape(50), color = categoryColor(event.category)) {
-                    Text(event.category.ifBlank { "Other" }, fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp, color = categoryTextColor(event.category),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
-                }
-            }
+            Text(event.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkText, modifier = Modifier.weight(1f))
             Spacer(Modifier.height(8.dp))
             InfoLine(R.drawable.schedule, "${event.date} • ${event.time}")
             Spacer(Modifier.height(4.dp))
             InfoLine(R.drawable.location_on, "${event.location.ifBlank { "TBD" }}  •  ${event.distanceKm} km")
             Spacer(Modifier.height(4.dp))
-            InfoLine(R.drawable.group, "${event.joined}/${event.maxPeople} joined")
+            InfoLine(R.drawable.group, "${event.joined}/${if (event.maxPeople == 0) "-" else event.maxPeople} joined")
 
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                MiniTag("Age: ${event.ageRange}", Sand, BodyText)
-                if (event.genderPref != "Any") MiniTag(event.genderPref, Honey, HoneyText)
+            if (event.tags.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    maxItemsInEachRow = 3 // Limit to show truncation behavior
+                ) {
+                    event.tags.forEachIndexed { index, tag ->
+                        if (index < 3) {
+                            MiniTag(tag, Sand, BodyText)
+                        } else if (index == 3) {
+                            Text("...", color = MutedText, modifier = Modifier.align(Alignment.CenterVertically))
+                        }
+                    }
+                }
             }
+
             Spacer(Modifier.height(12.dp))
             Button(
                 onClick = onAction,

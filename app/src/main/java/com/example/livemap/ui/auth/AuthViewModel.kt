@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.livemap.data.repository.AuthRepository
 import com.example.livemap.data.repository.AuthState
 import com.example.livemap.data.repository.FormState
+import com.example.livemap.data.repository.FriendshipRepository
 import com.example.livemap.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,7 +28,8 @@ import kotlinx.coroutines.launch
  */
 class AuthViewModel(
     private val authRepository: AuthRepository = AuthRepository(),
-    private val userRepository: UserRepository = UserRepository()
+    private val userRepository: UserRepository = UserRepository(),
+    private val friendshipRepository: FriendshipRepository = FriendshipRepository()
 ) : ViewModel() {
 
     /**
@@ -139,5 +141,77 @@ class AuthViewModel(
     // Signs the current user out - authState will transition to Unauthenticated.
     fun logout() {
         authRepository.signOut()
+    }
+
+    /**
+     * Sends a password reset email.
+     */
+    fun resetPassword(email: String) {
+        if (email.isBlank()) {
+            _formState.value = FormState.Error("Please enter your email.")
+            return
+        }
+
+        _formState.value = FormState.Submitting
+
+        viewModelScope.launch {
+
+            authRepository
+                .sendPasswordResetEmail(email.trim())
+                .onSuccess {
+                    _formState.value = FormState.Success
+                }
+                .onFailure { e ->
+                    _formState.value = FormState.Error(
+                        e.localizedMessage ?: "Unable to send reset email."
+                    )
+                }
+        }
+    }
+
+    /**
+     * Permanently deletes the current account.
+     *
+     * Steps (in order, all while still authenticated):
+     *   1. Re-authenticate with the password — Firebase requires a recent login
+     *      for delete(), otherwise it throws RecentLoginRequired.
+     *   2. Delete the user's friendship docs so friends don't keep ghost entries.
+     *   3. Delete the Firestore /users/{uid} profile.
+     *   4. Delete the Auth account — the auth-state listener then drives the app
+     *      back to the login screen.
+     *
+     * The outcome is reported through [onResult] so the UI can show success/error
+     * instead of failing silently (the old version returned early and did nothing,
+     * because authState.value was Loading in the screen-scoped ViewModel).
+     */
+    fun deleteAccount(password: String, onResult: (Result<Unit>) -> Unit = {}) {
+        val uid = authRepository.currentUser()?.uid
+        if (uid == null) {
+            onResult(Result.failure(IllegalStateException("No signed-in user")))
+            return
+        }
+        if (password.isBlank()) {
+            onResult(Result.failure(IllegalArgumentException("Please enter your password to confirm")))
+            return
+        }
+
+        viewModelScope.launch {
+            val reauth = authRepository.reauthenticate(password)
+            if (reauth.isFailure) {
+                onResult(Result.failure(reauth.exceptionOrNull() ?: Exception("Re-authentication failed")))
+                return@launch
+            }
+
+            // Best-effort cleanup of related data; don't abort the deletion if it fails.
+            friendshipRepository.deleteAllForUser(uid)
+
+            val profileResult = userRepository.deleteUserProfile(uid)
+            if (profileResult.isFailure) {
+                onResult(Result.failure(profileResult.exceptionOrNull() ?: Exception("Failed to delete profile")))
+                return@launch
+            }
+
+            onResult(authRepository.deleteCurrentUser())
+        }
     }
 }

@@ -127,7 +127,8 @@ class EventsViewModel(
         maxPeople = limitPeople,
         ownedByMe = ownerId == uid,
         joinedByMe = participantIds.contains(uid),
-        timeBucket = dateTime.toTimeBucket()
+        timeBucket = dateTime.toTimeBucket(),
+        tags = tags
     )
 
     private fun List<EventUi>.applyFilters(f: EventFilters): List<EventUi> = filter { ev ->

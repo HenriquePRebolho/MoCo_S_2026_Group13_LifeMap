@@ -20,7 +20,8 @@ data class EventUi(
     val maxPeople: Int,
     val ownedByMe: Boolean = false,
     val joinedByMe: Boolean = false,
-    val timeBucket: String = "Today"
+    val timeBucket: String = "Today",
+    val tags: List<String> = emptyList()
 )
 
 /**
