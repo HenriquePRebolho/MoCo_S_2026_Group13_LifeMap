@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.livemap.data.model.User
 import com.example.livemap.data.repository.AuthRepository
+import com.example.livemap.data.repository.StorageRepository
 import com.example.livemap.data.repository.UserRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -12,7 +13,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProfileViewModel(
     private val authRepository: AuthRepository = AuthRepository(),
-    private val userRepository: UserRepository = UserRepository()
+    private val userRepository: UserRepository = UserRepository(),
+    private val storageRepository: StorageRepository = StorageRepository()
 ) : ViewModel() {
 
     /**
@@ -43,6 +45,7 @@ class ProfileViewModel(
      */
     fun updateProfile(
         updates: Map<String, Any?>,
+        newProfilePictureUri: android.net.Uri? = null,
         onResult: (Result<Unit>) -> Unit = {}
     ) {
         val uid = user.value?.uid
@@ -51,7 +54,17 @@ class ProfileViewModel(
             return
         }
         viewModelScope.launch {
-            onResult(userRepository.updateUser(uid, updates))
+            var finalUpdates = updates
+            if (newProfilePictureUri != null) {
+                val uploadResult = storageRepository.uploadProfilePicture(uid, newProfilePictureUri)
+                uploadResult.onSuccess { url ->
+                    finalUpdates = updates + ("photoUrl" to url)
+                }.onFailure {
+                    onResult(Result.failure(it))
+                    return@launch
+                }
+            }
+            onResult(userRepository.updateUser(uid, finalUpdates))
         }
     }
 }
