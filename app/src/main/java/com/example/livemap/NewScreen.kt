@@ -84,46 +84,6 @@ fun NewScreen(
     val context = LocalContext.current
     val state by newEventViewModel.state.collectAsState()
 
-    var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var tempImageUri by remember { mutableStateOf<Uri?>(null) }
-    var showSourceDialog by remember { mutableStateOf(false) }
-
-    // Launcher for Gallery (using Photo Picker)
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri ->
-            if (uri != null) {
-                capturedImageUri = uri
-            }
-        }
-    )
-
-    // Launcher for Camera
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture(),
-        onResult = { success ->
-            if (success) {
-                capturedImageUri = tempImageUri
-            }
-        }
-    )
-
-    // Permission Launcher for Camera
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                val uri = createImageUri(context)
-                if (uri != null) {
-                    tempImageUri = uri
-                    cameraLauncher.launch(uri)
-                }
-            } else {
-                Toast.makeText(context, "Camera permission is required to take photos", Toast.LENGTH_SHORT).show()
-            }
-        }
-    )
-
     Column(modifier = Modifier
         .padding(16.dp)
         .verticalScroll(rememberScrollState())) {
@@ -136,7 +96,6 @@ fun NewScreen(
 
         // Image Selection Area
         Surface(
-            onClick = { showSourceDialog = true },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(200.dp)
@@ -145,74 +104,23 @@ fun NewScreen(
             shape = RoundedCornerShape(12.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                if (capturedImageUri != null) {
-                    AsyncImage(
-                        model = capturedImageUri,
-                        contentDescription = "Selected event image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        onError = {
-                            Toast.makeText(context, "Error loading image", Toast.LENGTH_SHORT)
-                                .show()
-                        }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.add_circle),
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.add_circle),
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "Add Event Photo",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = "Add Event Photo",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
 
-        if (showSourceDialog) {
-            AlertDialog(
-                onDismissRequest = { showSourceDialog = false },
-                title = { Text("Select Image Source") },
-                text = { Text("Choose how you want to add a photo for your event.") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showSourceDialog = false
-                        galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }) {
-                        Text("Gallery")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        showSourceDialog = false
-                        when (PackageManager.PERMISSION_GRANTED) {
-                            ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.CAMERA
-                            ) -> {
-                                val uri = createImageUri(context)
-                                if (uri != null) {
-                                    tempImageUri = uri
-                                    cameraLauncher.launch(uri)
-                                }
-                            }
-
-                            else -> {
-                                permissionLauncher.launch(Manifest.permission.CAMERA)
-                            }
-                        }
-                    }) {
-                        Text("Camera")
-                    }
-                }
-            )
-        }
-        ///////////////////////////////////////////////////////
+        Spacer(Modifier.height(16.dp))
 
 
         // NAME ///////////////////////////////////////////////////////////////////
@@ -334,22 +242,28 @@ fun NewScreen(
 
 
         // FRIENDS ////////////////////////////////////////////////////////////////
-        var friends by remember { mutableStateOf(vm.profile.friends) } ;
+        val allUsers by newEventViewModel.allUsers.collectAsState()
+        val friends by newEventViewModel.friends.collectAsState()
         var searchFriendQuery by remember { mutableStateOf("") }
-        var addedFriends by remember { mutableStateOf(listOf<String>()) }
+        var addedFriendIds by remember { mutableStateOf(listOf<String>()) }
         val searchBarState = remember { TextFieldState(searchFriendQuery) }
 
+        // Filter out friends already added
+        val availableFriends = friends.filter { it.uid !in addedFriendIds }
+        
         SimpleSearchBar(
             label = "Invite friends",
             textFieldState = searchBarState,
             onSearch = { searchFriendQuery = it },
-            searchResults = friends,
-            onFriendClicked = {
-                if (peopleLimitInt == 0 || addedFriends.size < peopleLimitInt) {
-                    addedFriends = addedFriends + it
-                    friends = friends - it
-                } else {
-                    Toast.makeText(context, "People limit reached", Toast.LENGTH_SHORT).show()
+            searchResults = availableFriends.map { it.displayName },
+            onFriendClicked = { name ->
+                val user = availableFriends.find { it.displayName == name }
+                if (user != null) {
+                    if (peopleLimitInt == 0 || addedFriendIds.size < peopleLimitInt) {
+                        addedFriendIds = addedFriendIds + user.uid
+                    } else {
+                        Toast.makeText(context, "People limit reached", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         )
@@ -359,12 +273,12 @@ fun NewScreen(
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
         ) {
-            addedFriends.forEach { addedFriend ->
+            addedFriendIds.forEach { uid ->
+                val user = allUsers.find { it.uid == uid }
                 SearchResultField(
-                    valor = addedFriend,
-                    onRemoveFriendClicked = { removedFriend ->
-                        addedFriends = addedFriends - removedFriend
-                        friends = (friends + removedFriend).sorted()
+                    valor = user?.displayName ?: "Unknown",
+                    onRemoveFriendClicked = { _ ->
+                        addedFriendIds = addedFriendIds - uid
                     }
                 )
             }
@@ -377,7 +291,7 @@ fun NewScreen(
                 eventLocation.isNotBlank() &&
                 selectedDateTime != null &&
                 peopleLimit.isNotEmpty() &&
-                (peopleLimitInt == 0 || addedFriends.size <= peopleLimitInt)
+                (peopleLimitInt == 0 || addedFriendIds.size <= peopleLimitInt)
         /////////////////////////////////////////////////////////////////////////
 
 
@@ -398,7 +312,7 @@ fun NewScreen(
                     isPublic = isPublic,
                     limitPeople = peopleLimitInt,
                     tags = addedEvents,
-                    invitedFriends = addedFriends
+                    invitedFriends = addedFriendIds
                 )
             },
             enabled = conditions && !isSubmitting,
@@ -434,7 +348,7 @@ fun NewScreen(
                 eventLocation = ""
                 selectedDateTime = null
                 addedEvents = emptyList()
-                addedFriends = emptyList()
+                addedFriendIds = emptyList()
                 peopleLimit = ""
                 // Added events also need to be reset
                 events = event_types

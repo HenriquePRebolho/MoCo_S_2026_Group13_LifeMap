@@ -70,7 +70,6 @@ class EventRepository(
             "locationLat" to event.locationLat,
             "locationLng" to event.locationLng,
             "geohash" to event.geohash,
-            //"photoUrl" to event.photoUrl,
             "isPublic" to event.isPublic,
             "limitPeople" to event.limitPeople,
             "participantIds" to event.participantIds,
@@ -115,6 +114,11 @@ class EventRepository(
             .await()
     }
 
+    suspend fun updateEventFields(eventId: String, updates: Map<String, Any?>): Result<Unit> = runCatching {
+        val withTimestamp = updates + ("updatedAt" to FieldValue.serverTimestamp())
+        eventsCollection.document(eventId).update(withTimestamp).await()
+    }
+
     suspend fun updateEvent(eventId: String, event: Event): Result<Unit> = runCatching {
         val data = mapOf(
             "name" to event.name,
@@ -123,10 +127,15 @@ class EventRepository(
             "locationText" to event.locationText,
             "isPublic" to event.isPublic,
             "limitPeople" to event.limitPeople,
+            "participantIds" to event.participantIds,
             "tags" to event.tags,
             "category" to event.category,
             "updatedAt" to FieldValue.serverTimestamp()
         )
         eventsCollection.document(eventId).update(data).await()
+    }
+
+    suspend fun deleteEvent(eventId: String): Result<Unit> = runCatching {
+        eventsCollection.document(eventId).delete().await()
     }
 }

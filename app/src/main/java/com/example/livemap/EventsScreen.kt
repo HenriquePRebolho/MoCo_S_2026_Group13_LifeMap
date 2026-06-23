@@ -363,7 +363,7 @@ fun EventCard(
             Spacer(Modifier.height(4.dp))
             InfoLine(R.drawable.location_on, "${event.location.ifBlank { "TBD" }}  •  ${event.distanceKm} km")
             Spacer(Modifier.height(4.dp))
-            InfoLine(R.drawable.group, "${event.joined}/${event.maxPeople} joined")
+            InfoLine(R.drawable.group, "${event.joined}/${if (event.maxPeople == 0) "-" else event.maxPeople} joined")
 
             if (event.tags.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))

@@ -1,7 +1,5 @@
 package com.example.livemap
 
-// TODO: set fields to not be editable
-// TODO: create button that allow changes, then converts into confirm and cancel button
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -175,7 +173,18 @@ fun ProfileScreen(
                 if (capturedImageUri != null) {
                     AsyncImage(
                         model = capturedImageUri,
-                        contentDescription = "Selected event image",
+                        contentDescription = "Selected profile image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        onError = {
+                            Toast.makeText(context, "Error loading image", Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                    )
+                } else if (user.photoUrl != null) {
+                    AsyncImage(
+                        model = user.photoUrl,
+                        contentDescription = "Profile image",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
                         onError = {
@@ -384,6 +393,7 @@ fun ProfileScreen(
                     languagesOptions = languages.filter { it !in user.languages }.sorted()
                     hobbySearchBarState.edit { replace(0, length, "") }
                     languageSearchBarState.edit { replace(0, length, "") }
+                    capturedImageUri = null
                     isEditing = false
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -405,10 +415,11 @@ fun ProfileScreen(
                     )
                     // Only leave edit mode if the write actually persisted; otherwise
                     // surface the error so a rejected write isn't lost silently.
-                    profileViewModel.updateProfile(updates) { result ->
+                    profileViewModel.updateProfile(updates, capturedImageUri) { result ->
                         result
                             .onSuccess {
                                 Toast.makeText(context, "Profile saved", Toast.LENGTH_SHORT).show()
+                                capturedImageUri = null
                                 isEditing = false
                             }
                             .onFailure { e ->
