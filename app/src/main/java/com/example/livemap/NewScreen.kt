@@ -36,9 +36,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +63,8 @@ import com.example.livemap.composables.SearchResultField
 import com.example.livemap.composables.SimpleSearchBar
 import com.example.livemap.composables.TextField
 import com.example.livemap.aux_files.event_types
+import com.example.livemap.aux_files.localDateTimeSaver
+import com.example.livemap.aux_files.stringListSaver
 import com.example.livemap.ui.theme.LiveMapTheme
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.collectAsState
@@ -74,12 +78,18 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 
 
+/** Result handed back from the map location picker (see LocationPickerScreen). */
+data class PickedLocation(val lat: Double, val lng: Double, val address: String)
+
 @SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewScreen(
     vm: CounterViewModel,
-    newEventViewModel: NewEventViewModel = viewModel()
+    newEventViewModel: NewEventViewModel = viewModel(),
+    onPickLocation: () -> Unit = {},
+    pickedLocation: PickedLocation? = null,
+    onPickedLocationConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val state by newEventViewModel.state.collectAsState()
@@ -216,14 +226,14 @@ fun NewScreen(
 
 
         // NAME ///////////////////////////////////////////////////////////////////
-        var eventName by remember { mutableStateOf("") }
+        var eventName by rememberSaveable { mutableStateOf("") }
         TextField("Event Name", eventName, onChange = { eventName = it })
         ///////////////////////////////////////////////////////////////////////////
 
         // EVENTS ////////////////////////////////////////////////////////////////
-        var events by remember { mutableStateOf(event_types) } ;
+        var events by rememberSaveable(stateSaver = stringListSaver) { mutableStateOf(event_types) }
         var searchEventQuery by remember { mutableStateOf("") }
-        var addedEvents by remember { mutableStateOf(listOf<String>()) }
+        var addedEvents by rememberSaveable(stateSaver = stringListSaver) { mutableStateOf(listOf<String>()) }
         val eventSearchBarState = remember { TextFieldState(searchEventQuery) }
         SimpleSearchBar(
             label = "Event type",
@@ -268,20 +278,49 @@ fun NewScreen(
 
 
         // NAME ////////////////////////////////////////////////////////////
-        var eventDescription by remember { mutableStateOf("") }
+        var eventDescription by rememberSaveable { mutableStateOf("") }
         TextField("Event Description", eventDescription, onChange = { eventDescription = it })
         ////////////////////////////////////////////////////////////////////
 
 
         // LOCATION /////////////////////////////////////////////////////////
-        var eventLocation by remember { mutableStateOf("") }
-        TextField("Event Location", eventLocation, onChange = { eventLocation = it })
+        var eventLocation by rememberSaveable { mutableStateOf("") }
+        // Coordinates resolved from the map picker. Null until the user picks a
+        // point; cleared when the text is edited manually so the address gets
+        // re-validated (geocoded) on submit.
+        var eventLat by rememberSaveable { mutableStateOf<Double?>(null) }
+        var eventLng by rememberSaveable { mutableStateOf<Double?>(null) }
+
+        // When the picker returns a result, fill the field + store coordinates.
+        LaunchedEffect(pickedLocation) {
+            pickedLocation?.let {
+                eventLocation = it.address
+                eventLat = it.lat
+                eventLng = it.lng
+                onPickedLocationConsumed()
+            }
+        }
+
+        TextField("Event Location", eventLocation, onChange = {
+            eventLocation = it
+            // Manual edit invalidates the picked coordinates.
+            eventLat = null
+            eventLng = null
+        })
+        TextButton(onClick = onPickLocation) {
+            Icon(
+                painter = painterResource(R.drawable.location_on),
+                contentDescription = null
+            )
+            Spacer(modifier = Modifier.size(4.dp))
+            Text("Select on map")
+        }
         ////////////////////////////////////////////////////////////////////
 
 
         // DATETIME ////////////////////////////////////////////////////////
         var showPicker by remember { mutableStateOf(false) }
-        var selectedDateTime by remember { mutableStateOf<LocalDateTime?>(null) }
+        var selectedDateTime by rememberSaveable(stateSaver = localDateTimeSaver) { mutableStateOf<LocalDateTime?>(null) }
 
         // Trigger field (reuses your existing PopUpTextField)
         PopUpTextField(
@@ -305,7 +344,7 @@ fun NewScreen(
 
 
         // PUBLIC /////////////////////////////////////////////////////////////////
-        var isPublic by remember { mutableStateOf(true) }
+        var isPublic by rememberSaveable { mutableStateOf(true) }
         Row(
             modifier = Modifier.padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -319,7 +358,7 @@ fun NewScreen(
 
 
         // PEOPLE LIMIT ////////////////////////////////////////////////////////////
-        var peopleLimit by remember { mutableStateOf("") }
+        var peopleLimit by rememberSaveable { mutableStateOf("") }
         var peopleLimitInt = peopleLimit.toIntOrNull() ?: 0
 
         OutlinedTextField(
@@ -334,9 +373,9 @@ fun NewScreen(
 
 
         // FRIENDS ////////////////////////////////////////////////////////////////
-        var friends by remember { mutableStateOf(vm.profile.friends) } ;
+        var friends by rememberSaveable(stateSaver = stringListSaver) { mutableStateOf(vm.profile.friends) }
         var searchFriendQuery by remember { mutableStateOf("") }
-        var addedFriends by remember { mutableStateOf(listOf<String>()) }
+        var addedFriends by rememberSaveable(stateSaver = stringListSaver) { mutableStateOf(listOf<String>()) }
         val searchBarState = remember { TextFieldState(searchFriendQuery) }
 
         SimpleSearchBar(
@@ -398,7 +437,9 @@ fun NewScreen(
                     isPublic = isPublic,
                     limitPeople = peopleLimitInt,
                     tags = addedEvents,
-                    invitedFriends = addedFriends
+                    invitedFriends = addedFriends,
+                    locationLat = eventLat,
+                    locationLng = eventLng
                 )
             },
             enabled = conditions && !isSubmitting,
@@ -423,31 +464,33 @@ fun NewScreen(
             }
         }
 
-        // Handle success/error states
-        when (state) {
-            is NewEventState.Success -> {
-                Toast.makeText(context, "Event created successfully!", Toast.LENGTH_SHORT).show()
-                newEventViewModel.resetState()
-                // Navigation or clearing fields could happen here
-                eventName = ""
-                eventDescription = ""
-                eventLocation = ""
-                selectedDateTime = null
-                addedEvents = emptyList()
-                addedFriends = emptyList()
-                peopleLimit = ""
-                // Added events also need to be reset
-                events = event_types
+        // Handle success/error states. Done in a LaunchedEffect so the Toast
+        // fires once per state change (not on every recomposition) and so an
+        // invalid location ("Invalid location") is surfaced as a Toast.
+        LaunchedEffect(state) {
+            when (val s = state) {
+                is NewEventState.Success -> {
+                    Toast.makeText(context, "Event created successfully!", Toast.LENGTH_SHORT).show()
+                    newEventViewModel.resetState()
+                    // Clear the form for the next event.
+                    eventName = ""
+                    eventDescription = ""
+                    eventLocation = ""
+                    eventLat = null
+                    eventLng = null
+                    selectedDateTime = null
+                    addedEvents = emptyList()
+                    addedFriends = emptyList()
+                    peopleLimit = ""
+                    // Restore the full list of selectable event types.
+                    events = event_types
+                }
+                is NewEventState.Error -> {
+                    Toast.makeText(context, s.message, Toast.LENGTH_SHORT).show()
+                    newEventViewModel.resetState()
+                }
+                else -> {}
             }
-            is NewEventState.Error -> {
-                val message = (state as NewEventState.Error).message
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-            else -> {}
         }
     }
 }

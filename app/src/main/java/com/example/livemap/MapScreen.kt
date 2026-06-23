@@ -26,13 +26,20 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.livemap.aux_files.event_types
+import com.example.livemap.aux_files.geocodeLocation
+import com.example.livemap.data.model.Event
+import com.example.livemap.ui.events.MapViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.json.JSONObject
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -42,7 +49,6 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import java.net.URL
-import java.net.URLEncoder
 
 
 // ─── ROUTE MODE ──────────────────────────────────────────────────────────────
@@ -76,10 +82,45 @@ private data class RouteResult(
 
 // ─── MAP SCREEN ──────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapScreen(vm: CounterViewModel) {
+fun MapScreen(
+    mapViewModel: MapViewModel = viewModel()
+) {
     val context = LocalContext.current
     val scope   = rememberCoroutineScope()
+
+    // Real events from Firestore (same source as the Events tab) + the type
+    // filter selected by the user. null = show all types.
+    val events by mapViewModel.events.collectAsStateWithLifecycle()
+    var selectedType by remember { mutableStateOf<String?>(null) }
+    var typeMenuExpanded by remember { mutableStateOf(false) }
+
+    // Events that actually have coordinates — the only ones that produce markers.
+    val locatedEvents = remember(events) {
+        events.filter { it.locationLat != 0.0 || it.locationLng != 0.0 }
+    }
+    // Type chips: only the configs.kt types present among located events,
+    // keeping configs.kt order. Avoids showing 46 mostly-empty chips.
+    val availableTypes = remember(locatedEvents) {
+        val present = buildSet {
+            locatedEvents.forEach { add(it.category); addAll(it.tags) }
+        }
+        event_types.filter { it in present }
+    }
+    // If the active filter is no longer available (events changed), clear it.
+    LaunchedEffect(availableTypes) {
+        if (selectedType != null && selectedType !in availableTypes) selectedType = null
+    }
+    // Number of (located) events per type, so the dropdown can show "type (N)".
+    // distinct() per event avoids double-counting when category == first tag.
+    val typeCounts = remember(locatedEvents) {
+        locatedEvents
+            .flatMap { (listOf(it.category) + it.tags).distinct() }
+            .filter { it.isNotBlank() }
+            .groupingBy { it }
+            .eachCount()
+    }
 
     // ── State variables ──────────────────────────────────────────────────────
     // remember { } keeps the value alive across recompositions (screen redraws).
@@ -102,7 +143,7 @@ fun MapScreen(vm: CounterViewModel) {
     var driveLabel    by remember { mutableStateOf("") }
     var walkLabel     by remember { mutableStateOf("") }
     var destMarker    by remember { mutableStateOf<Marker?>(null) }
-    var selectedEvent by remember { mutableStateOf<UiEvent?>(null) }
+    var selectedEvent by remember { mutableStateOf<Event?>(null) }
 
     // Keeps track of the event markers so we can remove them if the list changes
     val eventMarkers  = remember { mutableListOf<Marker>() }
@@ -160,18 +201,23 @@ fun MapScreen(vm: CounterViewModel) {
         }
     }
 
-    // Place a map marker for each event that has coordinates.
-    // Uses vm.events as key so this re-runs if the events list changes (e.g. from Firebase).
-    LaunchedEffect(vm.events) {
+    // Place a map marker for each real event that has coordinates and matches
+    // the selected type filter. Re-runs whenever the events list OR the filter
+    // changes, so markers update in real time.
+    LaunchedEffect(locatedEvents, selectedType) {
         // Remove old event markers before adding the new ones
         eventMarkers.forEach { mapView.overlays.remove(it) }
         eventMarkers.clear()
 
-        vm.events.filter { it.hasLocation }.forEach { event ->
+        locatedEvents.filter { ev ->
+            selectedType == null ||
+                    ev.category == selectedType ||
+                    ev.tags.contains(selectedType)
+        }.forEach { event ->
             val marker = Marker(mapView).apply {
                 position = GeoPoint(event.locationLat, event.locationLng)
                 title    = event.name
-                snippet  = event.location
+                snippet  = event.locationText
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                 // Tapping the marker shows the event info card instead of the default popup
                 setOnMarkerClickListener { _, _ ->
@@ -334,6 +380,63 @@ fun MapScreen(vm: CounterViewModel) {
                 }
             }
 
+            // Event-type filter dropdown. Types come exclusively from configs.kt
+            // (event_types) — no duplicated category list — and only those with
+            // events on the map are listed, each with its event count "type (N)".
+            // Picking one filters the markers in real time.
+            if (availableTypes.isNotEmpty()) {
+                val totalCount = locatedEvents.size
+                val selectedLabel = if (selectedType == null) {
+                    "All ($totalCount)"
+                } else {
+                    "$selectedType (${typeCounts[selectedType] ?: 0})"
+                }
+
+                ExposedDropdownMenuBox(
+                    expanded = typeMenuExpanded,
+                    onExpandedChange = { typeMenuExpanded = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                ) {
+                    TextField(
+                        value = selectedLabel,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Filter by type") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeMenuExpanded)
+                        },
+                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                        modifier = Modifier
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = typeMenuExpanded,
+                        onDismissRequest = { typeMenuExpanded = false }
+                    ) {
+                        // "All" clears the filter and shows the total.
+                        DropdownMenuItem(
+                            text = { Text("All ($totalCount)") },
+                            onClick = {
+                                selectedType = null
+                                typeMenuExpanded = false
+                            }
+                        )
+                        availableTypes.forEach { type ->
+                            DropdownMenuItem(
+                                text = { Text("$type (${typeCounts[type] ?: 0})") },
+                                onClick = {
+                                    selectedType = type
+                                    typeMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
             // Error message shown below the search bar
             if (errorMsg.isNotEmpty()) {
                 Surface(
@@ -421,9 +524,12 @@ fun MapScreen(vm: CounterViewModel) {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
+                            val whenText = event.dateTime?.toDate()?.let {
+                                SimpleDateFormat("MMM dd, yyyy · HH:mm", Locale.getDefault()).format(it)
+                            } ?: "TBD"
                             Text(text = event.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(text = event.location, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                            Text(text = "${event.date}  ·  ${event.timeStart}–${event.timeEnd}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                            Text(text = event.locationText, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                            Text(text = whenText, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                         }
                         IconButton(onClick = { selectedEvent = null }) {
                             Icon(painter = painterResource(R.drawable.cancel), contentDescription = "Close", tint = Color.Gray, modifier = Modifier.size(18.dp))
@@ -540,17 +646,11 @@ private suspend fun fetchLocation(context: Context): GeoPoint? {
     }
 }
 
-// Converts a text address into GPS coordinates using Nominatim (OpenStreetMap, free, no API key)
-private suspend fun geocodeAddress(query: String): GeoPoint? = withContext(Dispatchers.IO) {
-    try {
-        val encoded = URLEncoder.encode(query, "UTF-8")
-        val conn    = URL("https://nominatim.openstreetmap.org/search?q=$encoded&format=json&limit=1").openConnection()
-        conn.setRequestProperty("User-Agent", "LifeMap/1.0 (Android)")
-        val arr = JSONArray(conn.getInputStream().bufferedReader().readText())
-        if (arr.length() == 0) return@withContext null
-        val obj = arr.getJSONObject(0)
-        GeoPoint(obj.getDouble("lat"), obj.getDouble("lon"))
-    } catch (e: Exception) { null }
+// Converts a text address into GPS coordinates. Delegates to the shared
+// geocoding helper (Nominatim) so the network logic lives in one place.
+private suspend fun geocodeAddress(query: String): GeoPoint? {
+    val loc = geocodeLocation(query) ?: return null
+    return GeoPoint(loc.lat, loc.lng)
 }
 
 // Fetches a driving or walking route between two points using OSRM (free, no API key).

@@ -148,8 +148,47 @@ fun App(modifier: Modifier = Modifier) {
                     onNavigateToDetail = { eventId -> navController.navigate("events/$eventId") }
                 ) 
             }
-            composable(TopDest.Map.route) { MapScreen(vm) }
-            composable(TopDest.New.route) { NewScreen(vm) }
+            composable(TopDest.Map.route) { MapScreen() }
+            composable(TopDest.New.route) { entry ->
+                // Result coming back from the map location picker, passed via the
+                // back stack entry's savedStateHandle as three primitive keys.
+                val handle = entry.savedStateHandle
+                val lat by handle.getStateFlow<Double?>("picked_lat", null)
+                    .collectAsStateWithLifecycle()
+                val lng by handle.getStateFlow<Double?>("picked_lng", null)
+                    .collectAsStateWithLifecycle()
+                val address by handle.getStateFlow<String?>("picked_address", null)
+                    .collectAsStateWithLifecycle()
+
+                val picked = if (lat != null && lng != null && address != null) {
+                    PickedLocation(lat!!, lng!!, address!!)
+                } else null
+
+                NewScreen(
+                    vm = vm,
+                    onPickLocation = { navController.navigate("location_picker") },
+                    pickedLocation = picked,
+                    onPickedLocationConsumed = {
+                        handle["picked_lat"] = null
+                        handle["picked_lng"] = null
+                        handle["picked_address"] = null
+                    }
+                )
+            }
+            composable("location_picker") {
+                LocationPickerScreen(
+                    onConfirm = { lat, lng, address ->
+                        // Hand the result back to the New screen and pop.
+                        navController.previousBackStackEntry?.savedStateHandle?.apply {
+                            set("picked_lat", lat)
+                            set("picked_lng", lng)
+                            set("picked_address", address)
+                        }
+                        navController.popBackStack()
+                    },
+                    onCancel = { navController.popBackStack() }
+                )
+            }
             composable(TopDest.Friends.route) {
                 FriendsScreen(
                     onNavigateToFriendDetail = { uid -> navController.navigate("friends/$uid") }

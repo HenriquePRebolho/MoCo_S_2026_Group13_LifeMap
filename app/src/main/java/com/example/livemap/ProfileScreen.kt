@@ -45,7 +45,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -65,18 +64,12 @@ import coil.compose.AsyncImage
 import com.example.livemap.aux.createImageUri
 import com.example.livemap.aux_files.event_types
 import com.example.livemap.aux_files.languages
+import com.example.livemap.aux_files.stringListSaver
 import com.example.livemap.composables.EventInfoField
 import com.example.livemap.composables.SimpleSearchBar
 import com.example.livemap.ui.auth.AuthViewModel
 import com.example.livemap.ui.profile.ProfileViewModel
 import com.example.livemap.ui.theme.LiveMapTheme
-
-// Saver for List<String> edit state so it can be kept by rememberSaveable
-// (the default autoSaver can't persist an arbitrary List).
-private val stringListSaver = listSaver<List<String>, String>(
-    save = { it.toList() },
-    restore = { it }
-)
 
 @Composable
 fun ProfileScreen(
