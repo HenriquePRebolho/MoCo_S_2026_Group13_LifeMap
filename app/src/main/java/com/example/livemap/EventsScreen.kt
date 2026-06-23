@@ -179,6 +179,14 @@ private fun LoadedContent(
     onJoin: (String) -> Unit,
     onEventClick: (String) -> Unit
 ) {
+    // Each events section is collapsible. Collapsed by default so the page stays
+    // short; the count badge stays visible so you can see how many without opening.
+    // rememberSaveable keeps the state across scroll, recomposition and rotation.
+    var nearbyExpanded by rememberSaveable { mutableStateOf(false) }
+    var joinedExpanded by rememberSaveable { mutableStateOf(false) }
+    var recentExpanded by rememberSaveable { mutableStateOf(false) }
+    var ownedExpanded by rememberSaveable { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -204,48 +212,72 @@ private fun LoadedContent(
             )
         }
 
-        item { SectionHeader("Near you", state.nearby.size) }
-        if (state.nearby.isEmpty()) {
-            item { EmptyHint("No events match your filters.") }
-        } else {
-            items(state.nearby, key = { "nearby_${it.id}" }) { ev ->
-                EventCard(ev, "Join", true, CardKind.AVAILABLE, 
-                    onAction = { onJoin(ev.id) },
-                    onClick = { onEventClick(ev.id) }
-                )
+        item {
+            CollapsibleSectionHeader("Near you", state.nearby.size, nearbyExpanded) {
+                nearbyExpanded = !nearbyExpanded
+            }
+        }
+        if (nearbyExpanded) {
+            if (state.nearby.isEmpty()) {
+                item { EmptyHint("No events match your filters.") }
+            } else {
+                items(state.nearby, key = { "nearby_${it.id}" }) { ev ->
+                    EventCard(ev, "Join", true, CardKind.AVAILABLE,
+                        onAction = { onJoin(ev.id) },
+                        onClick = { onEventClick(ev.id) }
+                    )
+                }
             }
         }
 
-        item { SectionHeader("Joined events", state.joined.size) }
-        if (state.joined.isEmpty()) {
-            item { EmptyHint("You haven't joined any events yet.") }
-        } else {
-            items(state.joined, key = { "joined_${it.id}" }) { ev ->
-                EventCard(ev, "Joined", false, CardKind.JOINED,
-                    onClick = { onEventClick(ev.id) }
-                )
+        item {
+            CollapsibleSectionHeader("Joined events", state.joined.size, joinedExpanded) {
+                joinedExpanded = !joinedExpanded
+            }
+        }
+        if (joinedExpanded) {
+            if (state.joined.isEmpty()) {
+                item { EmptyHint("You haven't joined any events yet.") }
+            } else {
+                items(state.joined, key = { "joined_${it.id}" }) { ev ->
+                    EventCard(ev, "Joined", false, CardKind.JOINED,
+                        onClick = { onEventClick(ev.id) }
+                    )
+                }
             }
         }
 
-        item { SectionHeader("Recently joined", state.recentlyJoined.size) }
-        if (state.recentlyJoined.isEmpty()) {
-            item { EmptyHint("Nothing here yet — tap Join on an event.") }
-        } else {
-            items(state.recentlyJoined, key = { "recently_${it.id}" }) { ev ->
-                EventCard(ev, "Joined", false, CardKind.JOINED,
-                    onClick = { onEventClick(ev.id) }
-                )
+        item {
+            CollapsibleSectionHeader("Recently joined", state.recentlyJoined.size, recentExpanded) {
+                recentExpanded = !recentExpanded
+            }
+        }
+        if (recentExpanded) {
+            if (state.recentlyJoined.isEmpty()) {
+                item { EmptyHint("Nothing here yet — tap Join on an event.") }
+            } else {
+                items(state.recentlyJoined, key = { "recently_${it.id}" }) { ev ->
+                    EventCard(ev, "Joined", false, CardKind.JOINED,
+                        onClick = { onEventClick(ev.id) }
+                    )
+                }
             }
         }
 
-        item { SectionHeader("My created events", state.owned.size) }
-        if (state.owned.isEmpty()) {
-            item { EmptyHint("You haven't created any events yet.") }
-        } else {
-            items(state.owned, key = { "owned_${it.id}" }) { ev ->
-                EventCard(ev, "Owner", false, CardKind.OWNER,
-                    onClick = { onEventClick(ev.id) }
-                )
+        item {
+            CollapsibleSectionHeader("My created events", state.owned.size, ownedExpanded) {
+                ownedExpanded = !ownedExpanded
+            }
+        }
+        if (ownedExpanded) {
+            if (state.owned.isEmpty()) {
+                item { EmptyHint("You haven't created any events yet.") }
+            } else {
+                items(state.owned, key = { "owned_${it.id}" }) { ev ->
+                    EventCard(ev, "Owner", false, CardKind.OWNER,
+                        onClick = { onEventClick(ev.id) }
+                    )
+                }
             }
         }
 
@@ -418,6 +450,36 @@ fun SectionHeader(title: String, count: Int) {
             Text(count.toString(), fontSize = 12.sp, color = HoneyText, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
         }
+    }
+}
+
+/**
+ * Section header that toggles its content. Same look as [SectionHeader] (title +
+ * count badge), plus a chevron and a tap target spanning the whole row. The count
+ * stays visible while collapsed.
+ */
+@Composable
+fun CollapsibleSectionHeader(title: String, count: Int, expanded: Boolean, onToggle: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickableNoRipple(onToggle)
+            .padding(top = 6.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkText)
+        Spacer(Modifier.width(8.dp))
+        Surface(shape = RoundedCornerShape(50), color = ChipBg) {
+            Text(count.toString(), fontSize = 12.sp, color = HoneyText, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+        }
+        Spacer(Modifier.weight(1f))
+        Icon(
+            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+            contentDescription = if (expanded) "Collapse $title" else "Expand $title",
+            tint = MutedText,
+            modifier = Modifier.size(22.dp)
+        )
     }
 }
 
