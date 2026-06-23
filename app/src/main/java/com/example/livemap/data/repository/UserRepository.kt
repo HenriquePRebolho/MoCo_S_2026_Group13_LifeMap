@@ -81,7 +81,10 @@ class UserRepository(
                     return@addSnapshotListener
                 }
                 // snapshot is null only if the listener was removed.
-                val user = snapshot?.toObject(User::class.java)
+                // Guard toObject: a single malformed field (e.g. birthday stored as
+                // String instead of Timestamp) throws here, on the main thread, where
+                // the flow's .catch CANNOT intercept it → would crash the app.
+                val user = runCatching { snapshot?.toObject(User::class.java) }.getOrNull()
                 trySend(user)
             }
 
@@ -124,8 +127,11 @@ class UserRepository(
             if (error != null) {
                 close(error); return@addSnapshotListener
             }
+            // Skip (instead of crash on) any document that fails to deserialize.
+            // toObject throws on a type mismatch; without this guard one bad user
+            // document would tear down the whole listener and crash FriendsScreen.
             val users = snapshot?.documents
-                ?.mapNotNull { it.toObject(User::class.java) }
+                ?.mapNotNull { runCatching { it.toObject(User::class.java) }.getOrNull() }
                 ?.sortedBy { it.displayNameLower }
                 ?: emptyList()
             trySend(users)

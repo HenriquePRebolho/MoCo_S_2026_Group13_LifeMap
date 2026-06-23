@@ -9,6 +9,7 @@ import com.google.firebase.firestore.DocumentId
  * Mapped 1:1 with documents in the Firestore "events" collection.
  */
 data class Event(
+    @DocumentId
     val id: String = "",
 
     val name: String = "",

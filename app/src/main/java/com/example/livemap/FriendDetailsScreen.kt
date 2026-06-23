@@ -1,9 +1,12 @@
 package com.example.livemap
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,11 +27,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.livemap.data.model.User
 import com.example.livemap.ui.friends.FriendDetailState
 import com.example.livemap.ui.friends.FriendDetailViewModel
@@ -67,6 +74,14 @@ fun FriendDetailScreen(
     viewModel: FriendDetailViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Surface action results (success/error) as Toasts.
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(ScreenBg)) {
         when (val s = state) {
@@ -150,17 +165,26 @@ private fun LoadedDetail(
                     modifier = Modifier.padding(20.dp).fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Big avatar with the user's initial
+                    // Big avatar: profile photo if available, otherwise the initial.
                     Box(
-                        modifier = Modifier.size(100.dp).clip(CircleShape).background(Lavender),
+                        modifier = Modifier.size(104.dp).clip(CircleShape).background(Lavender),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = user.displayName.firstOrNull()?.toString()?.uppercase() ?: "?",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 40.sp,
-                            color = DarkText
-                        )
+                        if (!user.photoUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = user.photoUrl,
+                                contentDescription = "${user.displayName} photo",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(
+                                text = user.displayName.firstOrNull()?.toString()?.uppercase() ?: "?",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 42.sp,
+                                color = DarkText
+                            )
+                        }
                     }
                     Spacer(Modifier.height(12.dp))
 
@@ -186,6 +210,11 @@ private fun LoadedDetail(
                         }
                     }
 
+                    if (user.sex.isNotBlank()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(user.sex, color = MutedText, fontSize = 14.sp)
+                    }
+
                     if (user.description.isNotBlank()) {
                         Spacer(Modifier.height(10.dp))
                         Text(
@@ -198,16 +227,19 @@ private fun LoadedDetail(
                 }
             }
         }
-        item {
-            //Listing("Hobbies", hobbies)
+        // Interests / hobbies
+        if (user.hobbies.isNotEmpty()) {
+            item { ChipsBlock("Interests", user.hobbies, ChipBg, ChipPurpleText) }
         }
-        item {
-            //Listing("Languages", languages)
+
+        // Interests this friend has in common with you
+        if (commonInterests.isNotEmpty()) {
+            item { ChipsBlock("In common", commonInterests, SoftPink, PinkTextDark) }
         }
 
         // Languages
         if (user.languages.isNotEmpty()) {
-            item { ChipsBlock("Languages", user.languages, ChipBg, ChipPurpleText) }
+            item { ChipsBlock("Languages", user.languages, LightBlue, BlueTextDark) }
         }
 
         // Contact info — Instagram and Phone, if set
@@ -254,6 +286,7 @@ private fun LoadedDetail(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChipsBlock(
     label: String,
@@ -267,19 +300,22 @@ private fun ChipsBlock(
         shadowElevation = 4.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(label, fontSize = 14.sp, color = MutedText, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(8.dp))
-            // Single-row chips for simplicity; truncates at 6.
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                items.take(6).forEach { item ->
+            Spacer(Modifier.height(10.dp))
+            // Wrap chips onto multiple lines so every item is shown.
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items.forEach { item ->
                     Surface(shape = RoundedCornerShape(50), color = chipColor) {
                         Text(
                             item,
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = textColor,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
                 }

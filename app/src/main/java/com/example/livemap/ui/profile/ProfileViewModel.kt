@@ -35,11 +35,23 @@ class ProfileViewModel(
 
     /**
      * Updates the current user's profile in Firestore.
+     *
+     * The result is reported back through [onResult] so the UI can tell the
+     * user whether the write actually persisted. Previously the Result was
+     * dropped, so a rejected write (e.g. by security rules) failed silently
+     * and the screen looked like "changes don't save".
      */
-    fun updateProfile(updates: Map<String, Any?>) {
-        val uid = user.value?.uid ?: return
+    fun updateProfile(
+        updates: Map<String, Any?>,
+        onResult: (Result<Unit>) -> Unit = {}
+    ) {
+        val uid = user.value?.uid
+        if (uid == null) {
+            onResult(Result.failure(IllegalStateException("No signed-in user")))
+            return
+        }
         viewModelScope.launch {
-            userRepository.updateUser(uid, updates)
+            onResult(userRepository.updateUser(uid, updates))
         }
     }
 }

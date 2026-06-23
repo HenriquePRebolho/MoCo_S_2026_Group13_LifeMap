@@ -1,5 +1,6 @@
 package com.example.livemap
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,17 +35,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.livemap.data.model.Friendship
 import com.example.livemap.ui.friends.FriendUi
 import com.example.livemap.ui.friends.FriendsState
 import com.example.livemap.ui.friends.FriendsViewModel
-import com.google.firebase.auth.FirebaseAuth
 
 /* ---------- Lavender Dream palette — UNCHANGED ---------- */
 private val Lavender       = Color(0xFFDCC9F5)
@@ -68,6 +69,14 @@ fun FriendsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
 
+    // Surface action results (success/error) as Toasts so writes don't fail silently.
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(ScreenBg)) {
         when (val s = state) {
             is FriendsState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -82,6 +91,9 @@ fun FriendsScreen(
                 onQueryChange = { query = it },
                 onSendRequest = viewModel::sendFriendRequest,
                 onAcceptRequest = viewModel::acceptFriendRequest,
+                onDeclineRequest = { uid -> viewModel.removeFriendship(uid, "Request declined") },
+                onCancelRequest = { uid -> viewModel.removeFriendship(uid, "Request cancelled") },
+                onRemoveFriend = { uid -> viewModel.removeFriendship(uid, "Friend removed") },
                 onNavigateToFriendDetail = onNavigateToFriendDetail
             )
         }
@@ -95,10 +107,11 @@ private fun LoadedContent(
     onQueryChange: (String) -> Unit,
     onSendRequest: (String) -> Unit,
     onAcceptRequest: (String) -> Unit,
+    onDeclineRequest: (String) -> Unit,
+    onCancelRequest: (String) -> Unit,
+    onRemoveFriend: (String) -> Unit,
     onNavigateToFriendDetail: (String) -> Unit
 ) {
-    val currentUid = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
-
     fun matches(f: FriendUi): Boolean {
         if (query.isBlank()) return true
         val q = query.trim().lowercase()
@@ -107,6 +120,7 @@ private fun LoadedContent(
 
     val filteredFriends   = state.myFriends.filter(::matches)
     val filteredRequests  = state.incomingRequests.filter(::matches)
+    val filteredOutgoing  = state.outgoingRequests.filter(::matches)
     val filteredSuggested = state.suggested.filter(::matches)
 
     LazyColumn(
@@ -129,6 +143,24 @@ private fun LoadedContent(
                     avatarColor = LightBlue,
                     avatarTextColor = BlueTextDark,
                     onAction = { onAcceptRequest(friend.id) },
+                    onViewProfile = { onNavigateToFriendDetail(friend.id) },
+                    secondaryActionLabel = "Decline",
+                    onSecondaryAction = { onDeclineRequest(friend.id) }
+                )
+            }
+        }
+
+        if (filteredOutgoing.isNotEmpty()) {
+            item { SectionHeader("Sent Requests", filteredOutgoing.size) }
+            items(filteredOutgoing, key = { it.id }) { friend ->
+                FriendCard(
+                    friend = friend,
+                    commonInterests = state.myInterests.intersect(friend.interests.toSet()).toList(),
+                    actionLabel = "Cancel",
+                    actionEnabled = true,
+                    avatarColor = ChipBg,
+                    avatarTextColor = ChipPurpleText,
+                    onAction = { onCancelRequest(friend.id) },
                     onViewProfile = { onNavigateToFriendDetail(friend.id) }
                 )
             }
@@ -142,11 +174,11 @@ private fun LoadedContent(
                 FriendCard(
                     friend = friend,
                     commonInterests = state.myInterests.intersect(friend.interests.toSet()).toList(),
-                    actionLabel = "Friends",
-                    actionEnabled = false,
+                    actionLabel = "Remove",
+                    actionEnabled = true,
                     avatarColor = Lavender,
                     avatarTextColor = DarkText,
-                    onAction = { },
+                    onAction = { onRemoveFriend(friend.id) },
                     onViewProfile = { onNavigateToFriendDetail(friend.id) }
                 )
             }
@@ -157,13 +189,11 @@ private fun LoadedContent(
             item { EmptyHint("No suggestions match your search.") }
         } else {
             items(filteredSuggested, key = { it.id }) { friend ->
-                val friendshipId = Friendship.buildId(currentUid, friend.id)
-                val alreadySent = state.sentRequestFriendshipIds.contains(friendshipId)
                 FriendCard(
                     friend = friend,
                     commonInterests = state.myInterests.intersect(friend.interests.toSet()).toList(),
-                    actionLabel = if (alreadySent) "Request Sent" else "Add Friend",
-                    actionEnabled = !alreadySent,
+                    actionLabel = "Add Friend",
+                    actionEnabled = true,
                     avatarColor = SoftPink,
                     avatarTextColor = PinkTextDark,
                     onAction = { onSendRequest(friend.id) },
@@ -217,7 +247,9 @@ private fun FriendCard(
     avatarColor: Color,
     avatarTextColor: Color,
     onAction: () -> Unit,
-    onViewProfile: () -> Unit
+    onViewProfile: () -> Unit,
+    secondaryActionLabel: String? = null,
+    onSecondaryAction: () -> Unit = {}
 ) {
     Surface(
         shape = RoundedCornerShape(20.dp),
@@ -273,6 +305,18 @@ private fun FriendCard(
                         contentColor = BlueTextDark
                     )
                 ) { Text("View Profile") }
+
+                if (secondaryActionLabel != null) {
+                    Button(
+                        onClick = onSecondaryAction,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ChipBg,
+                            contentColor = ChipPurpleText
+                        )
+                    ) { Text(secondaryActionLabel) }
+                }
 
                 Button(
                     onClick = onAction,

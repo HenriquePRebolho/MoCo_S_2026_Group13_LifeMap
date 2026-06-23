@@ -45,6 +45,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
@@ -69,6 +71,13 @@ import com.example.livemap.ui.auth.AuthViewModel
 import com.example.livemap.ui.profile.ProfileViewModel
 import com.example.livemap.ui.theme.LiveMapTheme
 
+// Saver for List<String> edit state so it can be kept by rememberSaveable
+// (the default autoSaver can't persist an arbitrary List).
+private val stringListSaver = listSaver<List<String>, String>(
+    save = { it.toList() },
+    restore = { it }
+)
+
 @Composable
 fun ProfileScreen(
     profileViewModel: ProfileViewModel = viewModel(),
@@ -89,16 +98,18 @@ fun ProfileScreen(
     val context = LocalContext.current
     val isOnline by observeConnectivity(context)
 
-    var isEditing by remember { mutableStateOf(false) }
-
     // --- State for editing ---
-    var name by remember(user.uid) { mutableStateOf(user.displayName) }
-    var userDescription by remember(user.uid) { mutableStateOf(user.description) }
-    var userLocation by remember(user.uid) { mutableStateOf(user.location) }
-    var userInstagram by remember(user.uid) { mutableStateOf(user.instagram) }
-    var userPhone by remember(user.uid) { mutableStateOf(user.phone) }
-    var addedHobbies by remember(user.uid) { mutableStateOf(user.hobbies) }
-    var addedLanguages by remember(user.uid) { mutableStateOf(user.languages) }
+    // rememberSaveable (not plain remember) so an in-progress edit survives a
+    // bottom-tab switch and configuration changes; plain remember was discarded
+    // when the screen left composition, which is why edits "erased" on navigation.
+    var isEditing by rememberSaveable(user.uid) { mutableStateOf(false) }
+    var name by rememberSaveable(user.uid) { mutableStateOf(user.displayName) }
+    var userDescription by rememberSaveable(user.uid) { mutableStateOf(user.description) }
+    var userLocation by rememberSaveable(user.uid) { mutableStateOf(user.location) }
+    var userInstagram by rememberSaveable(user.uid) { mutableStateOf(user.instagram) }
+    var userPhone by rememberSaveable(user.uid) { mutableStateOf(user.phone) }
+    var addedHobbies by rememberSaveable(user.uid, stateSaver = stringListSaver) { mutableStateOf(user.hobbies) }
+    var addedLanguages by rememberSaveable(user.uid, stateSaver = stringListSaver) { mutableStateOf(user.languages) }
     var hobbiesOptions by remember(user.uid) { mutableStateOf(event_types.filter { it !in addedHobbies }) }
     var languagesOptions by remember(user.uid) { mutableStateOf(languages.filter { it !in addedLanguages }) }
     val hobbySearchBarState = remember(user.uid) { TextFieldState("") }
@@ -361,7 +372,7 @@ fun ProfileScreen(
         if (isEditing) {
             Button(
                 onClick = {
-                    // Reset all fields to their current values from the 'user' object
+                    // Revert the draft back to the persisted values, then exit edit mode.
                     name = user.displayName
                     userDescription = user.description
                     userLocation = user.location
@@ -392,8 +403,22 @@ fun ProfileScreen(
                         "instagram" to userInstagram,
                         "phone" to userPhone
                     )
-                    profileViewModel.updateProfile(updates)
-                    isEditing = false
+                    // Only leave edit mode if the write actually persisted; otherwise
+                    // surface the error so a rejected write isn't lost silently.
+                    profileViewModel.updateProfile(updates) { result ->
+                        result
+                            .onSuccess {
+                                Toast.makeText(context, "Profile saved", Toast.LENGTH_SHORT).show()
+                                isEditing = false
+                            }
+                            .onFailure { e ->
+                                Toast.makeText(
+                                    context,
+                                    "Couldn't save profile: ${e.localizedMessage ?: "unknown error"}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                    }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {

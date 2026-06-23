@@ -38,8 +38,10 @@ class FriendshipRepository(
                 if (error != null) {
                     close(error); return@addSnapshotListener
                 }
+                // Guard toObject so a single malformed friendship document doesn't
+                // throw on the main thread and crash the screen (see UserRepository).
                 val friendships = snapshot?.documents
-                    ?.mapNotNull { it.toObject(Friendship::class.java) }
+                    ?.mapNotNull { runCatching { it.toObject(Friendship::class.java) }.getOrNull() }
                     ?: emptyList()
                 trySend(friendships)
             }
