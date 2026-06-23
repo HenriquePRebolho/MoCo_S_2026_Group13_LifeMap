@@ -248,15 +248,26 @@ private fun EventDetailContent(
         }
 
         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            // Show owner first
+            val owner = allUsers.find { it.uid == event.ownerId }
+            SearchResultField(
+                valor = (owner?.displayName ?: "Unknown") + " (Owner)",
+                isEditing = false,
+                onRemoveFriendClicked = {}
+            )
+
+            // Show participants
             participantIds.forEach { uid ->
-                val user = allUsers.find { it.uid == uid }
-                SearchResultField(
-                    valor = user?.displayName ?: "Unknown",
-                    isEditing = isEditing && isOwner,
-                    onRemoveFriendClicked = { _ ->
-                        participantIds = participantIds - uid
-                    }
-                )
+                if (uid != event.ownerId) {
+                    val user = allUsers.find { it.uid == uid }
+                    SearchResultField(
+                        valor = user?.displayName ?: "Unknown",
+                        isEditing = isEditing && isOwner,
+                        onRemoveFriendClicked = { _ ->
+                            participantIds = participantIds - uid
+                        }
+                    )
+                }
             }
         }
 
