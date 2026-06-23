@@ -1,5 +1,10 @@
 package com.example.livemap
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +28,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -30,17 +38,25 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.livemap.aux_files.DistanceFilterOptions
+import com.example.livemap.aux_files.fetchUserLatLng
 import com.example.livemap.ui.events.EventUi
 import com.example.livemap.ui.events.EventsState
 import com.example.livemap.ui.events.EventsViewModel
@@ -63,8 +79,8 @@ private val MutedText    = Color(0xFF8B5E47)
 private val HoneyText    = Color(0xFF6B4A0E)
 private val SageText     = Color(0xFF6B7855)
 
-/* ---------- Filter option lists — UNCHANGED ---------- */
-private val DistanceOptions  = listOf("1 km", "5 km", "10 km", "25 km")
+/* ---------- Filter option lists ---------- */
+// Distance options are shared with the Map filter menu (aux_files/LocationUtils).
 private val CategoryOptions  = listOf("Sport", "Study", "Social", "Art", "Food", "Music")
 private val AgeOptions       = listOf("18-25", "26-35", "36-45", "Any")
 private val GenderOptions    = listOf("Any", "Male", "Female", "Mixed")
@@ -81,6 +97,28 @@ fun EventsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val filters by viewModel.filters.collectAsStateWithLifecycle()
+    val userLocation by viewModel.userLocation.collectAsStateWithLifecycle()
+
+    // Location wiring: the screen owns the Context + permission, then pushes the
+    // resolved coordinates into the ViewModel so it can compute distances.
+    val context = LocalContext.current
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> hasLocationPermission = granted }
+
+    LaunchedEffect(hasLocationPermission) {
+        if (!hasLocationPermission) {
+            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        } else {
+            viewModel.setUserLocation(fetchUserLatLng(context))
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -92,6 +130,7 @@ fun EventsScreen(
             is EventsState.Error -> ErrorContent(s.message)
             is EventsState.Loaded -> LoadedContent(
                 state = s,
+                locationAvailable = userLocation != null,
                 distance = filters.distance,
                 category = filters.category,
                 age = filters.ageRange,
@@ -129,6 +168,7 @@ private fun ErrorContent(message: String) {
 @Composable
 private fun LoadedContent(
     state: EventsState.Loaded,
+    locationAvailable: Boolean,
     distance: String?, onDistance: (String?) -> Unit,
     category: String?, onCategory: (String?) -> Unit,
     age: String?, onAge: (String?) -> Unit,
@@ -155,8 +195,11 @@ private fun LoadedContent(
 
         item {
             FiltersCard(
+                locationAvailable = locationAvailable,
                 distance = distance, onDistance = { onDistance(if (distance == it) null else it) },
                 category = category, onCategory = { onCategory(if (category == it) null else it) },
+                age = age,           onAge = { onAge(if (age == it) null else it) },
+                gender = gender,     onGender = { onGender(if (gender == it) null else it) },
                 maxPeople = maxPeople, onMaxPeople = { onMaxPeople(if (maxPeople == it) null else it) },
                 time = time,         onTime = { onTime(if (time == it) null else it) },
                 onClear = onClear
@@ -223,8 +266,11 @@ private inline fun androidx.compose.foundation.lazy.LazyListScope.items(
 
 @Composable
 private fun FiltersCard(
+    locationAvailable: Boolean,
     distance: String?, onDistance: (String) -> Unit,
     category: String?, onCategory: (String) -> Unit,
+    age: String?, onAge: (String) -> Unit,
+    gender: String?, onGender: (String) -> Unit,
     maxPeople: String?, onMaxPeople: (String) -> Unit,
     time: String?, onTime: (String) -> Unit,
     onClear: () -> Unit
@@ -250,26 +296,88 @@ private fun FiltersCard(
                         .clickableNoRipple { onClear() }
                 )
             }
-            Spacer(Modifier.height(6.dp))
-            FilterRow("Distance",   DistanceOptions,  distance,  onDistance)
-            FilterRow("Category",   CategoryOptions,  category,  onCategory)
-            FilterRow("Max people", MaxPeopleOptions, maxPeople, onMaxPeople)
-            FilterRow("Time",       TimeOptions,      time,      onTime)
+            Spacer(Modifier.height(2.dp))
+            // Each filter is a collapsible accordion so the card stays compact:
+            // collapsed it shows just the label + current selection; expanded it
+            // reveals the option chips. Distance falls back to a message when the
+            // user's location isn't available.
+            FilterAccordion(
+                "Distance", DistanceFilterOptions, distance, onDistance,
+                enabled = locationAvailable,
+                disabledMessage = "Location unavailable"
+            )
+            FilterAccordion("Category",   CategoryOptions,  category,  onCategory)
+            FilterAccordion("Age range",  AgeOptions,       age,       onAge)
+            FilterAccordion("Gender",     GenderOptions,    gender,    onGender)
+            FilterAccordion("Max people", MaxPeopleOptions, maxPeople, onMaxPeople)
+            FilterAccordion("Time",       TimeOptions,      time,      onTime)
         }
     }
 }
 
+/**
+ * A single collapsible filter group. Collapsed by default; the header shows the
+ * current selection (if any) so the value stays visible without expanding.
+ * Reused by the Map filter menu too.
+ */
 @Composable
-private fun FilterRow(label: String, options: List<String>, selected: String?, onSelect: (String) -> Unit) {
-    Column(modifier = Modifier.padding(vertical = 4.dp)) {
-        Text(label, fontSize = 12.sp, color = SageText)
-        Spacer(Modifier.height(4.dp))
+fun FilterAccordion(
+    label: String,
+    options: List<String>,
+    selected: String?,
+    onSelect: (String) -> Unit,
+    enabled: Boolean = true,
+    disabledMessage: String? = null,
+    // Maps an option value to the text shown on its chip (e.g. to append a count).
+    // Selection/matching always uses the raw option value, so callers can decorate
+    // the label without breaking onSelect.
+    displayLabel: (String) -> String = { it }
+) {
+    var expanded by rememberSaveable(label) { mutableStateOf(false) }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize()
+            .padding(vertical = 2.dp)
+    ) {
         Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickableNoRipple { expanded = !expanded }
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            options.forEach { opt ->
-                FilterChipPill(opt, selected == opt) { onSelect(opt) }
+            Text(label, fontSize = 13.sp, color = SageText, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            if (!expanded && selected != null) {
+                MiniTag(displayLabel(selected), ChipBg, HoneyText)
+                Spacer(Modifier.width(6.dp))
+            }
+            Icon(
+                imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = if (expanded) "Collapse $label" else "Expand $label",
+                tint = MutedText,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        if (expanded) {
+            if (!enabled) {
+                Text(
+                    disabledMessage ?: "Unavailable",
+                    fontSize = 12.sp,
+                    color = MutedText,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+            } else {
+                Row(
+                    modifier = Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    options.forEach { opt ->
+                        FilterChipPill(displayLabel(opt), selected == opt) { onSelect(opt) }
+                    }
+                }
             }
         }
     }
@@ -351,11 +459,12 @@ fun EventCard(
             .clickableNoRipple(onClick)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Text(event.name, modifier = Modifier.fillMaxWidth(), color = DarkText, fontWeight = FontWeight.Bold)
+            Text(event.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkText, modifier = Modifier.weight(1f))
             Spacer(Modifier.height(8.dp))
             InfoLine(R.drawable.schedule, "${event.date} • ${event.time}")
             Spacer(Modifier.height(4.dp))
-            InfoLine(R.drawable.location_on, "${event.location.ifBlank { "TBD" }}  •  ${event.distanceKm} km")
+            val distanceText = event.distanceKm?.let { "  •  %.1f km".format(it) } ?: ""
+            InfoLine(R.drawable.location_on, "${event.location.ifBlank { "TBD" }}$distanceText")
             Spacer(Modifier.height(4.dp))
             InfoLine(R.drawable.group, "${event.joined}/${if (event.maxPeople == 0) "-" else event.maxPeople} joined")
 

@@ -149,7 +149,11 @@ fun App(modifier: Modifier = Modifier) {
                     onNavigateToDetail = { eventId -> navController.navigate("events/$eventId") }
                 ) 
             }
-            composable(TopDest.Map.route) { MapScreen() }
+            composable(TopDest.Map.route) {
+                MapScreen(
+                    onNavigateToDetail = { eventId -> navController.navigate("events/$eventId") }
+                )
+            }
             composable(TopDest.New.route) { entry ->
                 // Result coming back from the map location picker, passed via the
                 // back stack entry's savedStateHandle as three primitive keys.

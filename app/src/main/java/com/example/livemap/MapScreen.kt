@@ -1,19 +1,16 @@
 package com.example.livemap
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
-import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,17 +25,19 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.livemap.aux_files.DistanceFilterOptions
 import com.example.livemap.aux_files.event_types
+import com.example.livemap.aux_files.fetchUserLatLng
 import com.example.livemap.aux_files.geocodeLocation
+import com.example.livemap.aux_files.haversineKm
+import com.example.livemap.aux_files.matchesDistanceFilter
 import com.example.livemap.data.model.Event
 import com.example.livemap.ui.events.MapViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
-import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.osmdroid.config.Configuration
@@ -69,9 +68,6 @@ enum class RouteMode(
 // Default location shown when the user denies location permission
 private val DEFAULT_LOCATION = GeoPoint(37.3886, -5.9823) // Sevilla
 
-// Cached GPS positions older than 5 minutes are considered stale
-private const val MAX_CACHE_AGE_MS = 5 * 60 * 1000L
-
 // Data returned by the OSRM routing API
 private data class RouteResult(
     val points: List<GeoPoint>,
@@ -82,19 +78,31 @@ private data class RouteResult(
 
 // ─── MAP SCREEN ──────────────────────────────────────────────────────────────
 
+// Participation filter: how the current user relates to an event.
+// Mirrors the partitions used on the Events tab.
+enum class ParticipationFilter(val label: String) {
+    JOINED("Joined"),
+    AVAILABLE("Can join"),
+    OWNED("Created by me")
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
-    mapViewModel: MapViewModel = viewModel()
+    mapViewModel: MapViewModel = viewModel(),
+    onNavigateToDetail: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope   = rememberCoroutineScope()
 
-    // Real events from Firestore (same source as the Events tab) + the type
-    // filter selected by the user. null = show all types.
+    // Real events from Firestore (same source as the Events tab). Three combinable
+    // filters live in the "⋮" menu: category (type), distance and participation.
     val events by mapViewModel.events.collectAsStateWithLifecycle()
+    val uid = mapViewModel.uid
     var selectedType by remember { mutableStateOf<String?>(null) }
-    var typeMenuExpanded by remember { mutableStateOf(false) }
+    var selectedDistance by remember { mutableStateOf<String?>(null) }
+    var selectedParticipation by remember { mutableStateOf<ParticipationFilter?>(null) }
+    var filterMenuOpen by remember { mutableStateOf(false) }
 
     // Events that actually have coordinates — the only ones that produce markers.
     val locatedEvents = remember(events) {
@@ -112,7 +120,7 @@ fun MapScreen(
     LaunchedEffect(availableTypes) {
         if (selectedType != null && selectedType !in availableTypes) selectedType = null
     }
-    // Number of (located) events per type, so the dropdown can show "type (N)".
+    // Number of (located) events per type, so the filter menu can show "type (N)".
     // distinct() per event avoids double-counting when category == first tag.
     val typeCounts = remember(locatedEvents) {
         locatedEvents
@@ -120,6 +128,19 @@ fun MapScreen(
             .filter { it.isNotBlank() }
             .groupingBy { it }
             .eachCount()
+    }
+    // Number of (located) events per participation status, relative to the current
+    // user, so the participation filter can show "Joined (N)" etc.
+    val participationCounts = remember(locatedEvents, uid) {
+        ParticipationFilter.entries.associateWith { pf ->
+            if (uid == null) 0 else locatedEvents.count { ev ->
+                when (pf) {
+                    ParticipationFilter.JOINED -> ev.participantIds.contains(uid)
+                    ParticipationFilter.OWNED -> ev.ownerId == uid
+                    ParticipationFilter.AVAILABLE -> ev.ownerId != uid && !ev.participantIds.contains(uid)
+                }
+            }
+        }
     }
 
     // ── State variables ──────────────────────────────────────────────────────
@@ -201,18 +222,34 @@ fun MapScreen(
         }
     }
 
-    // Place a map marker for each real event that has coordinates and matches
-    // the selected type filter. Re-runs whenever the events list OR the filter
-    // changes, so markers update in real time.
-    LaunchedEffect(locatedEvents, selectedType) {
+    // Place a map marker for each real event that has coordinates and matches the
+    // active filters (category + distance + participation, combined with AND).
+    // Re-runs whenever the events list, any filter OR the user location changes,
+    // so markers update in real time.
+    LaunchedEffect(locatedEvents, selectedType, selectedDistance, selectedParticipation, userLocation) {
         // Remove old event markers before adding the new ones
         eventMarkers.forEach { mapView.overlays.remove(it) }
         eventMarkers.clear()
 
         locatedEvents.filter { ev ->
-            selectedType == null ||
+            val byType = selectedType == null ||
                     ev.category == selectedType ||
                     ev.tags.contains(selectedType)
+
+            val byDistance = selectedDistance == null || matchesDistanceFilter(
+                selectedDistance,
+                haversineKm(userLocation.latitude, userLocation.longitude, ev.locationLat, ev.locationLng)
+            )
+
+            val byParticipation = when (selectedParticipation) {
+                null -> true
+                ParticipationFilter.JOINED -> uid != null && ev.participantIds.contains(uid)
+                ParticipationFilter.OWNED  -> uid != null && ev.ownerId == uid
+                ParticipationFilter.AVAILABLE ->
+                    uid != null && ev.ownerId != uid && !ev.participantIds.contains(uid)
+            }
+
+            byType && byDistance && byParticipation
         }.forEach { event ->
             val marker = Marker(mapView).apply {
                 position = GeoPoint(event.locationLat, event.locationLng)
@@ -377,62 +414,18 @@ fun MapScreen(
                             Icon(painter = painterResource(R.drawable.cancel), contentDescription = "Clear", tint = Color.Gray)
                         }
                     }
-                }
-            }
-
-            // Event-type filter dropdown. Types come exclusively from configs.kt
-            // (event_types) — no duplicated category list — and only those with
-            // events on the map are listed, each with its event count "type (N)".
-            // Picking one filters the markers in real time.
-            if (availableTypes.isNotEmpty()) {
-                val totalCount = locatedEvents.size
-                val selectedLabel = if (selectedType == null) {
-                    "All ($totalCount)"
-                } else {
-                    "$selectedType (${typeCounts[selectedType] ?: 0})"
-                }
-
-                ExposedDropdownMenuBox(
-                    expanded = typeMenuExpanded,
-                    onExpandedChange = { typeMenuExpanded = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                ) {
-                    TextField(
-                        value = selectedLabel,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Filter by type") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeMenuExpanded)
-                        },
-                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                        modifier = Modifier
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = typeMenuExpanded,
-                        onDismissRequest = { typeMenuExpanded = false }
-                    ) {
-                        // "All" clears the filter and shows the total.
-                        DropdownMenuItem(
-                            text = { Text("All ($totalCount)") },
-                            onClick = {
-                                selectedType = null
-                                typeMenuExpanded = false
-                            }
+                    // Three-dot menu opening the filters (category / distance /
+                    // participation). Highlighted when any filter is active.
+                    val activeFilters =
+                        (if (selectedType != null) 1 else 0) +
+                        (if (selectedDistance != null) 1 else 0) +
+                        (if (selectedParticipation != null) 1 else 0)
+                    IconButton(onClick = { filterMenuOpen = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Filters",
+                            tint = if (activeFilters > 0) Color(0xFF1976D2) else Color.Gray
                         )
-                        availableTypes.forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text("$type (${typeCounts[type] ?: 0})") },
-                                onClick = {
-                                    selectedType = type
-                                    typeMenuExpanded = false
-                                }
-                            )
-                        }
                     }
                 }
             }
@@ -553,6 +546,95 @@ fun MapScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Open the full event detail screen, passing the event id through
+                    // the existing navigation (events/{eventId}).
+                    OutlinedButton(
+                        onClick = {
+                            val id = event.id
+                            selectedEvent = null
+                            if (id.isNotBlank()) onNavigateToDetail(id)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.event),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Ver información del evento")
+                    }
+                }
+            }
+        }
+
+        // Filters bottom sheet, opened from the "⋮" menu. Holds the three
+        // combinable filters; state lives in the composable so it stays
+        // consistent across open/close.
+        if (filterMenuOpen) {
+            ModalBottomSheet(onDismissRequest = { filterMenuOpen = false }) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 24.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Filters",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = {
+                            selectedType = null
+                            selectedDistance = null
+                            selectedParticipation = null
+                        }) { Text("Clear all") }
+                    }
+                    Spacer(Modifier.height(4.dp))
+
+                    // 1) Category — reuses the existing type list + filter logic,
+                    // each chip annotated with its event count "type (N)".
+                    FilterAccordion(
+                        label = "Category",
+                        options = availableTypes,
+                        selected = selectedType,
+                        onSelect = { selectedType = if (selectedType == it) null else it },
+                        enabled = availableTypes.isNotEmpty(),
+                        disabledMessage = "No categories available",
+                        displayLabel = { "$it (${typeCounts[it] ?: 0})" }
+                    )
+
+                    // 2) Distance from the user (same options as the Events tab).
+                    FilterAccordion(
+                        label = "Distance",
+                        options = DistanceFilterOptions,
+                        selected = selectedDistance,
+                        onSelect = { selectedDistance = if (selectedDistance == it) null else it }
+                    )
+
+                    // 3) Participation status relative to the current user, each
+                    // chip annotated with its event count "Joined (N)" etc.
+                    FilterAccordion(
+                        label = "Participation",
+                        options = ParticipationFilter.entries.map { it.label },
+                        selected = selectedParticipation?.label,
+                        onSelect = { label ->
+                            val picked = ParticipationFilter.entries.first { it.label == label }
+                            selectedParticipation = if (selectedParticipation == picked) null else picked
+                        },
+                        displayLabel = { label ->
+                            val pf = ParticipationFilter.entries.first { it.label == label }
+                            "$label (${participationCounts[pf] ?: 0})"
+                        }
+                    )
                 }
             }
         }
@@ -608,43 +690,11 @@ private fun formatRouteLabel(distanceM: Double, durationS: Double): String {
 
 // ─── NETWORK / LOCATION FUNCTIONS ────────────────────────────────────────────
 
-// Gets the device's current GPS position.
-// First tries the cached position (instant). If it's too old, requests a fresh one.
-@SuppressLint("MissingPermission")
-private suspend fun fetchLocation(context: Context): GeoPoint? {
-    if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
-        != PackageManager.PERMISSION_GRANTED) return null
-
-    val lm  = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    val now = System.currentTimeMillis()
-
-    // Try cached position first (much faster than requesting a new fix)
-    val gpsCache = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-    val netCache = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-    val cached   = when {
-        gpsCache != null && now - gpsCache.time < MAX_CACHE_AGE_MS -> gpsCache
-        netCache != null && now - netCache.time < MAX_CACHE_AGE_MS -> netCache
-        else -> null
-    }
-    if (cached != null) return GeoPoint(cached.latitude, cached.longitude)
-
-    // No fresh cache — suspend and wait for a new GPS fix without blocking the UI
-    return suspendCancellableCoroutine { cont ->
-        val listener = object : LocationListener {
-            override fun onLocationChanged(loc: Location) {
-                lm.removeUpdates(this)
-                if (cont.isActive) cont.resume(GeoPoint(loc.latitude, loc.longitude))
-            }
-        }
-        val provider = when {
-            lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
-            lm.isProviderEnabled(LocationManager.GPS_PROVIDER)     -> LocationManager.GPS_PROVIDER
-            else -> { cont.resume(null); return@suspendCancellableCoroutine }
-        }
-        lm.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper())
-        cont.invokeOnCancellation { lm.removeUpdates(listener) }
-    }
-}
+// Gets the device's current GPS position as a GeoPoint.
+// Delegates to the shared fetchUserLatLng helper (aux_files/LocationUtils) so the
+// Map and Events tabs resolve the user location with identical logic.
+private suspend fun fetchLocation(context: Context): GeoPoint? =
+    fetchUserLatLng(context)?.let { GeoPoint(it.lat, it.lng) }
 
 // Converts a text address into GPS coordinates. Delegates to the shared
 // geocoding helper (Nominatim) so the network logic lives in one place.
