@@ -86,7 +86,11 @@ fun ForgotPasswordScreen(
         // that should receive the password reset email.
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
+            onValueChange = {
+                email = it
+                // Clear a previous success/error message so it doesn't linger while editing.
+                if (formState !is FormState.Idle) viewModel.resetForm()
+            },
             label = { Text("Email") },
             singleLine = true,
             enabled = formState !is FormState.Submitting,

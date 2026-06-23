@@ -26,6 +26,9 @@ fun AuthNavHost() {
         composable("login") {
             LoginScreen(
                 onNavigateToRegister = {
+                    // Clear any stale form state so it doesn't bleed across screens
+                    // (they share one AuthViewModel / formState).
+                    authViewModel.resetForm()
                     navController.navigate("register") {
                         // Don't pile up Login → Register → Login → Register - replaces instead.
                         popUpTo("login") { inclusive = false }
@@ -34,6 +37,7 @@ fun AuthNavHost() {
                 },
                 // Navigate to password recovery screen.
                 onNavigateToForgotPassword = {
+                    authViewModel.resetForm()
                     navController.navigate("forgot_password")
                 },
                 viewModel = authViewModel
@@ -42,6 +46,7 @@ fun AuthNavHost() {
         composable("register") {
             RegisterScreen(
                 onNavigateToLogin = {
+                    authViewModel.resetForm()
                     navController.popBackStack(
                         route = "login",
                         inclusive = false
@@ -54,6 +59,7 @@ fun AuthNavHost() {
         composable("forgot_password") {
             ForgotPasswordScreen(
                 onBackToLogin = {
+                    authViewModel.resetForm()
                     navController.popBackStack(
                         route = "login",
                         inclusive = false

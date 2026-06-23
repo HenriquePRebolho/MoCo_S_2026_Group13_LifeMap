@@ -1,5 +1,6 @@
 package com.example.livemap.data.repository
 
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.channels.awaitClose
@@ -73,7 +74,23 @@ class AuthRepository(
     }
 
     /**
+     * Re-authenticates the current user with their password.
+     *
+     * Firebase requires a recent login for sensitive operations such as
+     * deleting the account; otherwise delete() throws
+     * FirebaseAuthRecentLoginRequiredException. Call this right before
+     * deleteCurrentUser().
+     */
+    suspend fun reauthenticate(password: String): Result<Unit> = runCatching {
+        val user = auth.currentUser ?: error("No authenticated user found")
+        val email = user.email ?: error("Current user has no email to re-authenticate")
+        val credential = EmailAuthProvider.getCredential(email, password)
+        user.reauthenticate(credential).await()
+    }
+
+    /**
      * Permanently deletes the currently authenticated Firebase user.
+     * Requires a recent login — see [reauthenticate].
      */
     suspend fun deleteCurrentUser(): Result<Unit> = runCatching {
         auth.currentUser?.delete()?.await()
