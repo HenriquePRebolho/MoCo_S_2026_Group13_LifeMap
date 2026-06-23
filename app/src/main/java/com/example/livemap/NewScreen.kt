@@ -62,6 +62,11 @@ import com.example.livemap.composables.SimpleSearchBar
 import com.example.livemap.composables.TextField
 import com.example.livemap.aux_files.event_types
 import com.example.livemap.ui.theme.LiveMapTheme
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.livemap.ui.events.NewEventState
+import com.example.livemap.ui.events.NewEventViewModel
 import com.google.firebase.Timestamp
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -72,8 +77,13 @@ import java.util.Date
 @SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewScreen(vm: CounterViewModel) {
+fun NewScreen(
+    vm: CounterViewModel,
+    newEventViewModel: NewEventViewModel = viewModel()
+) {
     val context = LocalContext.current
+    val state by newEventViewModel.state.collectAsState()
+
     var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
     var showSourceDialog by remember { mutableStateOf(false) }
@@ -310,10 +320,12 @@ fun NewScreen(vm: CounterViewModel) {
 
         // PEOPLE LIMIT ////////////////////////////////////////////////////////////
         var peopleLimit by remember { mutableStateOf("") }
+        var peopleLimitInt = peopleLimit.toIntOrNull() ?: 0
+
         OutlinedTextField(
             value = peopleLimit,
             onValueChange = { text -> peopleLimit = text.filter { it.isDigit() } },
-            label = { Text("People Limit") },
+            label = { Text("People Limit (0 for no limit)") },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
@@ -326,13 +338,20 @@ fun NewScreen(vm: CounterViewModel) {
         var searchFriendQuery by remember { mutableStateOf("") }
         var addedFriends by remember { mutableStateOf(listOf<String>()) }
         val searchBarState = remember { TextFieldState(searchFriendQuery) }
-        var peopleLimitInt = peopleLimit.toIntOrNull() ?: 0
+
         SimpleSearchBar(
             label = "Invite friends",
             textFieldState = searchBarState,
             onSearch = { searchFriendQuery = it },
             searchResults = friends,
-            onFriendClicked = { if (addedFriends.size < peopleLimitInt) {addedFriends = addedFriends + it; friends = friends - it;} }
+            onFriendClicked = {
+                if (peopleLimitInt == 0 || addedFriends.size < peopleLimitInt) {
+                    addedFriends = addedFriends + it
+                    friends = friends - it
+                } else {
+                    Toast.makeText(context, "People limit reached", Toast.LENGTH_SHORT).show()
+                }
+            }
         )
 
         Column(
@@ -354,34 +373,81 @@ fun NewScreen(vm: CounterViewModel) {
 
 
         // CONDITIONS ///////////////////////////////////////////////////////////
-        var conditions by remember { mutableStateOf(false) }
-        conditions = (eventName.isNotEmpty() && eventLocation.isNotEmpty() && selectedDateTime.toString().isNotEmpty()
-                && peopleLimit.isNotEmpty() && (addedFriends.size <= peopleLimitInt))
+        val conditions = eventName.isNotBlank() &&
+                eventLocation.isNotBlank() &&
+                selectedDateTime != null &&
+                peopleLimit.isNotEmpty() &&
+                (peopleLimitInt == 0 || addedFriends.size <= peopleLimitInt)
         /////////////////////////////////////////////////////////////////////////
 
 
         // CREATE EVENT ///////////////////////////////////////////////////////////
+        val isSubmitting = state is NewEventState.Submitting
+
         Button(
-            onClick = { /* TODO: Implement event creation logic using capturedImageUri
-                                Send: eventName, eventTypes, eventDescription, evenLocation, selectedDateText,
-                                      selectedTimeText, peopleLimit, isPublic, addedFriends */
-                val firestoreTimestamp = selectedDateTime?.let {
+            onClick = {
+                val date = selectedDateTime?.let {
                     val instant = it.atZone(ZoneId.systemDefault()).toInstant()
-                    Timestamp(Date.from(instant))
+                    Date.from(instant)
                 }
+                newEventViewModel.createEvent(
+                    name = eventName,
+                    description = eventDescription,
+                    locationText = eventLocation,
+                    dateTime = date,
+                    isPublic = isPublic,
+                    limitPeople = peopleLimitInt,
+                    tags = addedEvents,
+                    invitedFriends = addedFriends
+                )
             },
-            enabled = conditions,
+            enabled = conditions && !isSubmitting,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp)
         ) {
-            Text(text = "Create new event", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Spacer(modifier = Modifier.size(8.dp))
-            Icon(
-                painter = painterResource(R.drawable.add_circle),
-                tint = Color.White,
-                contentDescription = null
-            )
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(text = "Create new event", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Spacer(modifier = Modifier.size(8.dp))
+                Icon(
+                    painter = painterResource(R.drawable.add_circle),
+                    tint = Color.White,
+                    contentDescription = null
+                )
+            }
+        }
+
+        // Handle success/error states
+        when (state) {
+            is NewEventState.Success -> {
+                Toast.makeText(context, "Event created successfully!", Toast.LENGTH_SHORT).show()
+                newEventViewModel.resetState()
+                // Navigation or clearing fields could happen here
+                eventName = ""
+                eventDescription = ""
+                eventLocation = ""
+                selectedDateTime = null
+                addedEvents = emptyList()
+                addedFriends = emptyList()
+                peopleLimit = ""
+                // Added events also need to be reset
+                events = event_types
+            }
+            is NewEventState.Error -> {
+                val message = (state as NewEventState.Error).message
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            else -> {}
         }
     }
 }
