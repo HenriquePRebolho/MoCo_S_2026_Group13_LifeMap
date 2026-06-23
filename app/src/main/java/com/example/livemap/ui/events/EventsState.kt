@@ -16,7 +16,10 @@ data class EventUi(
     val date: String,
     val time: String,
     val location: String,
-    val distanceKm: Double,
+    // Distance from the user in km. null = unknown (no user location yet, or the
+    // event has no coordinates) — the UI shows no distance and the distance
+    // filter treats it accordingly.
+    val distanceKm: Double?,
     val ageRange: String,
     val genderPref: String,
     val joined: Int,

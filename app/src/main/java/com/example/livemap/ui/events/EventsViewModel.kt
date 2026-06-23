@@ -2,6 +2,9 @@ package com.example.livemap.ui.events
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.livemap.aux_files.LatLng
+import com.example.livemap.aux_files.haversineKm
+import com.example.livemap.aux_files.matchesDistanceFilter
 import com.example.livemap.data.model.Event
 import com.example.livemap.data.repository.AuthRepository
 import com.example.livemap.data.repository.EventRepository
@@ -46,14 +49,21 @@ class EventsViewModel(
     // Stores event IDs in chronological order (newest first).
     private val _recentlyJoinedIds = MutableStateFlow<List<String>>(emptyList())
 
+    // The user's current location, pushed in by the screen (which owns the
+    // Context + permission). null until resolved — distance filtering and the
+    // distance label fall back gracefully while it's null.
+    private val _userLocation = MutableStateFlow<LatLng?>(null)
+    val userLocation: StateFlow<LatLng?> = _userLocation.asStateFlow()
+
+    /** Called by the screen once it has the device location (or to update it). */
+    fun setUserLocation(location: LatLng?) { _userLocation.value = location }
+
     /**
      * Main state. Emits Loaded whenever:
      *   - The events list changes (Firestore snapshot)
      *   - The filters change
      *   - The recentlyJoined list changes
-     * Limitation: distance filtering is a no-op for now — we don't have the
-     * user's current location wired in. Will be a follow-up when we connect
-     * the location service from MapScreen.
+     *   - The user location changes (recomputes distances + distance filter)
      */
     val state: StateFlow<EventsState> = if (currentUid == null) {
         MutableStateFlow<EventsState>(EventsState.Error("Not signed in")).asStateFlow()
@@ -61,15 +71,19 @@ class EventsViewModel(
         kotlinx.coroutines.flow.combine(
             eventRepository.observeAllEvents(),
             _filters,
-            _recentlyJoinedIds
-        ) { events, filters, recentIds ->
-            val mapped = events.map { it.toUi(currentUid) }
-            val filteredAll = mapped.applyFilters(filters)
+            _recentlyJoinedIds,
+            _userLocation
+        ) { events, filters, recentIds, userLoc ->
+            val mapped = events.map { it.toUi(currentUid, userLoc) }
+            val filteredAll = mapped.applyFilters(filters, userLoc != null)
+            // Index by id once so "recently joined" lookups are O(1) instead of
+            // scanning the whole list per id (was O(recent × events)).
+            val byId = mapped.associateBy { it.id }
 
             EventsState.Loaded(
                 nearby = filteredAll.filter { !it.ownedByMe && !it.joinedByMe },
                 joined = mapped.filter { it.joinedByMe },
-                recentlyJoined = recentIds.mapNotNull { id -> mapped.find { it.id == id } },
+                recentlyJoined = recentIds.mapNotNull { byId[it] },
                 owned = mapped.filter { it.ownedByMe }
             ) as EventsState
         }
@@ -112,15 +126,16 @@ class EventsViewModel(
 
     // ── Mapping helpers (Firestore Event → UI EventUi) ──
 
-    private fun Event.toUi(uid: String): EventUi = EventUi(
+    private fun Event.toUi(uid: String, userLoc: LatLng?): EventUi = EventUi(
         id = id,
         name = name,
         category = category,
         date = dateTime.toDisplayDate(),
         time = dateTime.toDisplayTime(),
         location = locationText,
-        // Placeholder until we wire in the user's GPS location.
-        distanceKm = 0.0,
+        // Real distance from the user, when we have both the user's location and
+        // coordinates for the event. null otherwise (unknown).
+        distanceKm = distanceFromUser(userLoc),
         ageRange = ageRange,
         genderPref = genderPref,
         joined = participantIds.size,
@@ -131,7 +146,18 @@ class EventsViewModel(
         tags = tags
     )
 
-    private fun List<EventUi>.applyFilters(f: EventFilters): List<EventUi> = filter { ev ->
+    /**
+     * Computes the event's distance from the user, or null when it can't be known
+     * (no user location yet, or the event has no real coordinates).
+     */
+    private fun Event.distanceFromUser(userLoc: LatLng?): Double? {
+        if (userLoc == null) return null
+        val hasCoords = locationLat != 0.0 || locationLng != 0.0
+        if (!hasCoords) return null
+        return haversineKm(userLoc.lat, userLoc.lng, locationLat, locationLng)
+    }
+
+    private fun List<EventUi>.applyFilters(f: EventFilters, hasLocation: Boolean): List<EventUi> = filter { ev ->
         val byCategory  = f.category  == null || ev.category  == f.category
         val byAge       = f.ageRange  == null || f.ageRange == "Any" || ev.ageRange == f.ageRange
         val byGender    = f.gender    == null || f.gender == "Any" || ev.genderPref == f.gender || ev.genderPref == "Any"
@@ -142,8 +168,18 @@ class EventsViewModel(
             "20"  -> ev.maxPeople <= 20
             else  -> true
         }
-        // Distance filter is a no-op until we add user location.
-        byCategory && byAge && byGender && byTime && byMaxPeople
+        // Distance filter:
+        //  - no filter selected            → pass.
+        //  - no user location available    → pass (UI shows "location unavailable").
+        //  - event distance unknown        → only the widest "50+ km" option keeps it.
+        //  - otherwise                     → within the selected radius.
+        val byDistance = when {
+            f.distance == null -> true
+            !hasLocation       -> true
+            ev.distanceKm == null -> f.distance.contains("+")
+            else               -> matchesDistanceFilter(f.distance, ev.distanceKm)
+        }
+        byCategory && byAge && byGender && byTime && byMaxPeople && byDistance
     }
 
     private fun Timestamp?.toDisplayDate(): String {

@@ -32,6 +32,9 @@ class MapViewModel(
 
     private val currentUid: String? = authRepository.currentUser()?.uid
 
+    /** Exposed so the map's participation filter can classify events relative to me. */
+    val uid: String? = currentUid
+
     /** Visible events from Firestore; the screen filters/places markers from this. */
     val events: StateFlow<List<Event>> = eventRepository.observeAllEvents()
         .map { all ->
