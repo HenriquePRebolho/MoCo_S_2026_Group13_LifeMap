@@ -5,6 +5,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.livemap.ForgotPasswordScreen
 
 /**
  * Hosts the Login and Register screens with navigation between them.
@@ -25,11 +26,19 @@ fun AuthNavHost() {
         composable("login") {
             LoginScreen(
                 onNavigateToRegister = {
+                    // Clear any stale form state so it doesn't bleed across screens
+                    // (they share one AuthViewModel / formState).
+                    authViewModel.resetForm()
                     navController.navigate("register") {
                         // Don't pile up Login → Register → Login → Register - replaces instead.
                         popUpTo("login") { inclusive = false }
                         launchSingleTop = true
                     }
+                },
+                // Navigate to password recovery screen.
+                onNavigateToForgotPassword = {
+                    authViewModel.resetForm()
+                    navController.navigate("forgot_password")
                 },
                 viewModel = authViewModel
             )
@@ -37,6 +46,20 @@ fun AuthNavHost() {
         composable("register") {
             RegisterScreen(
                 onNavigateToLogin = {
+                    authViewModel.resetForm()
+                    navController.popBackStack(
+                        route = "login",
+                        inclusive = false
+                    )
+                },
+                viewModel = authViewModel
+            )
+        }
+
+        composable("forgot_password") {
+            ForgotPasswordScreen(
+                onBackToLogin = {
+                    authViewModel.resetForm()
                     navController.popBackStack(
                         route = "login",
                         inclusive = false

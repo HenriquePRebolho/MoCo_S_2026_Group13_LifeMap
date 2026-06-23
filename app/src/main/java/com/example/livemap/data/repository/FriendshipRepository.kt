@@ -89,4 +89,19 @@ class FriendshipRepository(
     suspend fun removeFriendship(friendshipId: String): Result<Unit> = runCatching {
         friendshipsCollection.document(friendshipId).delete().await()
     }
+
+    /**
+     * Deletes every friendship document involving the given user.
+     * Used when an account is deleted so friends don't keep "ghost" entries.
+     * Must run while the user is still authenticated (rules require membership).
+     */
+    suspend fun deleteAllForUser(uid: String): Result<Unit> = runCatching {
+        val snapshot = friendshipsCollection
+            .whereArrayContains("userIds", uid)
+            .get()
+            .await()
+        for (doc in snapshot.documents) {
+            doc.reference.delete().await()
+        }
+    }
 }
