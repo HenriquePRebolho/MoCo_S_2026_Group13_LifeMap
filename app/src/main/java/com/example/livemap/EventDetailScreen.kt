@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -189,188 +191,219 @@ private fun EventDetailContent(
 
     val context = LocalContext.current
 
-    Column(
+    LazyColumn(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
+            .fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(painterResource(R.drawable.back), contentDescription = "Back", tint = DarkText)
-            }
-            Text("Event Details", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = DarkText)
-            Spacer(Modifier.weight(1f))
-            if (isOwner && !isEditing) {
-                IconButton(onClick = { isEditing = true }) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = SageDark)
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(painterResource(R.drawable.back), contentDescription = "Back", tint = DarkText)
+                }
+                Text("Event Details", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = DarkText)
+                Spacer(Modifier.weight(1f))
+                if (isOwner && !isEditing) {
+                    IconButton(onClick = { isEditing = true }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = SageDark)
+                    }
                 }
             }
         }
 
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = Color.White,
-            shadowElevation = 4.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Name
-                if (isEditing) {
-                    DetailEditField("Event Name", name, onChange = { name = it }, icon = Icons.Default.Edit)
-                } else {
-                    Text(name, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = DarkText)
-                }
-
-                // Description
-                if (isEditing) {
-                    DetailEditField("Description", description, onChange = { description = it }, icon = Icons.Default.Description)
-                } else if (description.isNotBlank()) {
-                    Text(description, fontSize = 15.sp, color = BodyText)
-                }
-
-                // Date & Time
-                var showPicker by remember { mutableStateOf(false) }
-                val displayDate = dateTime?.toDate()?.let { 
-                    SimpleDateFormat("MMM dd, yyyy - HH:mm", Locale.getDefault()).format(it) 
-                } ?: "TBD"
-
-                if (isEditing) {
-                    DetailClickField("Date & Time", displayDate, icon = R.drawable.schedule) {
-                        showPicker = true
+        item {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                shadowElevation = 4.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Name
+                    if (isEditing) {
+                        DetailEditField("Event Name", name, onChange = { name = it }, icon = Icons.Default.Edit)
+                    } else {
+                        Text(name, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = DarkText)
                     }
-                } else {
-                    DetailInfoRow(R.drawable.schedule, displayDate)
-                }
 
-                if (showPicker) {
-                    DateTimePickerModal(
-                        onDateTimeSelected = { localDateTime ->
-                            val instant = localDateTime.atZone(ZoneId.systemDefault()).toInstant()
-                            dateTime = Timestamp(Date.from(instant))
-                            showPicker = false
-                        },
-                        onDismiss = { showPicker = false }
-                    )
-                }
+                    // Description
+                    if (isEditing) {
+                        DetailEditField(
+                            "Description",
+                            description,
+                            onChange = { description = it },
+                            icon = Icons.Default.Description
+                        )
+                    } else if (description.isNotBlank()) {
+                        Text(description, fontSize = 15.sp, color = BodyText)
+                    }
 
-                // Location
-                Column {
-                    EventInfoField(
-                        valor = locationText,
-                        onChange = {
-                            locationText = it
-                            locationLat = null
-                            locationLng = null
-                        },
-                        isEditing = isEditing,
-                        fontSize = 16.sp,
-                        font = Font(R.font.lexend_light, FontWeight.Normal),
-                        leadingIconPainter = painterResource(R.drawable.location_on)
-                    )
+                    // Date & Time
+                    var showPicker by remember { mutableStateOf(false) }
+                    val displayDate = dateTime?.toDate()?.let {
+                        SimpleDateFormat("MMM dd, yyyy - HH:mm", Locale.getDefault()).format(it)
+                    } ?: "TBD"
 
                     if (isEditing) {
-                        TextButton(
-                            onClick = onPickLocation,
-                            modifier = Modifier.padding(start = 32.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.location_on),
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = SageDark
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text("Select on map", color = SageDark, fontWeight = FontWeight.SemiBold)
+                        DetailClickField("Date & Time", displayDate, icon = R.drawable.schedule) {
+                            showPicker = true
                         }
+                    } else {
+                        DetailInfoRow(R.drawable.schedule, displayDate)
                     }
-                }
 
-                Spacer(Modifier.height(8.dp))
-
-                // People Limit
-                val limitInt = limitPeople.toIntOrNull() ?: 0
-                if (isEditing) {
-                    DetailEditField(
-                        "People Limit (0 for no limit)", 
-                        limitPeople, 
-                        onChange = { limitPeople = it.filter { c -> c.isDigit() } }, 
-                        icon = R.drawable.group,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                } else {
-                    DetailInfoRow(R.drawable.group, "${participantIds.size} / ${if (limitInt == 0) "∞" else limitInt} joined")
-                }
-
-                // Privacy
-                if (isEditing) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                if (isPublic) painterResource(R.drawable.language) else imageVectorPainter(Icons.Default.Lock),
-                                contentDescription = null,
-                                tint = SageDark,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(if (isPublic) "Public Event" else "Private Event", color = BodyText, fontSize = 15.sp)
-                        }
-                        Switch(
-                            checked = isPublic,
-                            onCheckedChange = { isPublic = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = SageDark,
-                                uncheckedThumbColor = Color.White,
-                                uncheckedTrackColor = ChipBg
-                            )
+                    if (showPicker) {
+                        DateTimePickerModal(
+                            onDateTimeSelected = { localDateTime ->
+                                val instant = localDateTime.atZone(ZoneId.systemDefault()).toInstant()
+                                dateTime = Timestamp(Date.from(instant))
+                                showPicker = false
+                            },
+                            onDismiss = { showPicker = false }
                         )
                     }
-                } else {
-                    DetailInfoRow(
-                        if (isPublic) R.drawable.language else Icons.Default.Lock,
-                        if (isPublic) "Public Event" else "Private Event"
-                    )
+
+                    // Location
+                    Column {
+                        EventInfoField(
+                            valor = locationText,
+                            onChange = {
+                                locationText = it
+                                locationLat = null
+                                locationLng = null
+                            },
+                            isEditing = isEditing,
+                            fontSize = 16.sp,
+                            font = Font(R.font.lexend_light, FontWeight.Normal),
+                            leadingIconPainter = painterResource(R.drawable.location_on)
+                        )
+
+                        if (isEditing) {
+                            TextButton(
+                                onClick = onPickLocation,
+                                modifier = Modifier.padding(start = 32.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.location_on),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = SageDark
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text("Select on map", color = SageDark, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    // People Limit
+                    val limitInt = limitPeople.toIntOrNull() ?: 0
+                    if (isEditing) {
+                        DetailEditField(
+                            "People Limit (0 for no limit)",
+                            limitPeople,
+                            onChange = { limitPeople = it.filter { c -> c.isDigit() } },
+                            icon = R.drawable.group,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                    } else {
+                        DetailInfoRow(
+                            R.drawable.group,
+                            "${participantIds.size} / ${if (limitInt == 0) "∞" else limitInt} joined"
+                        )
+                    }
+
+                    // Privacy
+                    if (isEditing) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    if (isPublic) painterResource(R.drawable.language) else imageVectorPainter(
+                                        Icons.Default.Lock
+                                    ),
+                                    contentDescription = null,
+                                    tint = SageDark,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    if (isPublic) "Public Event" else "Private Event",
+                                    color = BodyText,
+                                    fontSize = 15.sp
+                                )
+                            }
+                            Switch(
+                                checked = isPublic,
+                                onCheckedChange = { isPublic = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = SageDark,
+                                    uncheckedThumbColor = Color.White,
+                                    uncheckedTrackColor = ChipBg
+                                )
+                            )
+                        }
+                    } else {
+                        DetailInfoRow(
+                            if (isPublic) R.drawable.language else Icons.Default.Lock,
+                            if (isPublic) "Public Event" else "Private Event"
+                        )
+                    }
                 }
             }
         }
 
         // Tags
-        Text("Categories", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkText)
+        item {
+            Text("Categories", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkText)
+        }
         if (isEditing) {
-            SimpleSearchBar(
-                label = "Add category...",
-                textFieldState = tagSearchBarState,
-                onSearch = { },
-                searchResults = tagOptions,
-                onFriendClicked = { tag -> tags = tags + tag }
-            )
+            item {
+                SimpleSearchBar(
+                    label = "Add category...",
+                    textFieldState = tagSearchBarState,
+                    onSearch = { },
+                    searchResults = tagOptions,
+                    onFriendClicked = { tag -> tags = tags + tag }
+                )
+            }
         }
 
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            tags.forEach { tag ->
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = Sand,
-                    modifier = if (isEditing) Modifier.clickable { tags = tags - tag } else Modifier
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+        item {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                tags.forEach { tag ->
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Sand,
+                        modifier = if (isEditing) Modifier.clickable { tags = tags - tag } else Modifier
                     ) {
-                        Text(tag, fontSize = 13.sp, color = BodyText, fontWeight = FontWeight.SemiBold)
-                        if (isEditing) {
-                            Spacer(Modifier.width(4.dp))
-                            Icon(painterResource(R.drawable.cancel), contentDescription = null, modifier = Modifier.size(14.dp), tint = MutedText)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(tag, fontSize = 13.sp, color = BodyText, fontWeight = FontWeight.SemiBold)
+                            if (isEditing) {
+                                Spacer(Modifier.width(4.dp))
+                                Icon(
+                                    painterResource(R.drawable.cancel),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MutedText
+                                )
+                            }
                         }
                     }
                 }
@@ -378,110 +411,133 @@ private fun EventDetailContent(
         }
 
         // Participants
-        Text("Participants", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkText)
-        
-        if (isEditing && isOwner) {
-            val friendSearchBarState = remember { TextFieldState("") }
-            val availableFriends = friends.filter { it.uid !in participantIds }
+        item {
+            Text("Participants", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkText)
+        }
 
-            SimpleSearchBar(
-                label = "Invite friends...",
-                textFieldState = friendSearchBarState,
-                onSearch = { },
-                searchResults = availableFriends.map { it.displayName },
-                onFriendClicked = { name ->
-                    val user = availableFriends.find { it.displayName == name }
-                    if (user != null) {
-                        val limit = limitPeople.toIntOrNull() ?: 0
-                        if (limit == 0 || participantIds.size < limit) {
-                            participantIds = participantIds + user.uid
-                        } else {
-                            Toast.makeText(context, "People limit reached", Toast.LENGTH_SHORT).show()
+        if (isEditing && isOwner) {
+            item {
+                val friendSearchBarState = remember { TextFieldState("") }
+                val availableFriends = friends.filter { it.uid !in participantIds }
+
+                SimpleSearchBar(
+                    label = "Invite friends...",
+                    textFieldState = friendSearchBarState,
+                    onSearch = { },
+                    searchResults = availableFriends.map { it.displayName },
+                    onFriendClicked = { name ->
+                        val user = availableFriends.find { it.displayName == name }
+                        if (user != null) {
+                            val limit = limitPeople.toIntOrNull() ?: 0
+                            if (limit == 0 || participantIds.size < limit) {
+                                participantIds = participantIds + user.uid
+                            } else {
+                                Toast.makeText(context, "People limit reached", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                )
+            }
+        }
+
+        item {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val owner = allUsers.find { it.uid == event.ownerId }
+                ParticipantItem(owner?.displayName ?: "Unknown", isOwner = true)
+
+                participantIds.filter { it != event.ownerId }.forEach { uid ->
+                    val user = allUsers.find { it.uid == uid }
+                    ParticipantItem(
+                        name = user?.displayName ?: "Unknown",
+                        isOwner = false,
+                        onRemove = if (isEditing && isOwner) {
+                            { participantIds = participantIds - uid }
+                        } else null
+                    )
+                }
+            }
+        }
+
+        item {
+            Spacer(Modifier.height(16.dp))
+        }
+
+        item {
+            if (isOwner) {
+                if (isEditing) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { isEditing = false },
+                                modifier = Modifier.weight(1f).height(50.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, SageDark),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = SageDark)
+                            ) {
+                                Text("Cancel")
+                            }
+                            Button(
+                                onClick = {
+                                    val limitInt = limitPeople.toIntOrNull() ?: 0
+                                    onSave(
+                                        event.copy(
+                                            name = name,
+                                            description = description,
+                                            locationText = locationText,
+                                            dateTime = dateTime,
+                                            limitPeople = limitInt,
+                                            isPublic = isPublic,
+                                            participantIds = participantIds,
+                                            tags = tags,
+                                            category = tags.firstOrNull() ?: ""
+                                        ),
+                                        locationLat,
+                                        locationLng
+                                    )
+                                    isEditing = false
+                                },
+                                modifier = Modifier.weight(1f).height(50.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = SageDark)
+                            ) {
+                                Text("Save")
+                            }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        TextButton(
+                            onClick = { showDeleteDialog = true },
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                            colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                        ) {
+                            Text("Delete Event")
                         }
                     }
                 }
-            )
-        }
-
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val owner = allUsers.find { it.uid == event.ownerId }
-            ParticipantItem(owner?.displayName ?: "Unknown", isOwner = true)
-
-            participantIds.filter { it != event.ownerId }.forEach { uid ->
-                val user = allUsers.find { it.uid == uid }
-                ParticipantItem(
-                    name = user?.displayName ?: "Unknown",
-                    isOwner = false,
-                    onRemove = if (isEditing && isOwner) { { participantIds = participantIds - uid } } else null
-                )
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        if (isOwner) {
-            if (isEditing) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(
-                        onClick = { isEditing = false },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, SageDark),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SageDark)
-                    ) {
-                        Text("Cancel")
-                    }
-                    Button(
-                        onClick = {
-                            val limitInt = limitPeople.toIntOrNull() ?: 0
-                            onSave(
-                                event.copy(
-                                    name = name,
-                                    description = description,
-                                    locationText = locationText,
-                                    dateTime = dateTime,
-                                    limitPeople = limitInt,
-                                    isPublic = isPublic,
-                                    participantIds = participantIds,
-                                    tags = tags,
-                                    category = tags.firstOrNull() ?: ""
-                                ),
-                                locationLat,
-                                locationLng
-                            )
-                            isEditing = false
-                        },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = SageDark)
-                    ) {
-                        Text("Save")
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-                TextButton(
-                    onClick = { showDeleteDialog = true },
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+            } else {
+                Button(
+                    onClick = onToggleJoin,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isJoined) Color(0xFFE57373) else JoinBrown,
+                        contentColor = Color.White
+                    )
                 ) {
-                    Text("Delete Event")
+                    Text(
+                        if (isJoined) "Leave Event" else "Join Event",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
                 }
-            }
-        } else {
-            Button(
-                onClick = onToggleJoin,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isJoined) Color(0xFFE57373) else JoinBrown,
-                    contentColor = Color.White
-                )
-            ) {
-                Text(if (isJoined) "Leave Event" else "Join Event", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
         }
 
-        Spacer(Modifier.height(40.dp))
+        item {
+            Spacer(Modifier.height(40.dp))
+        }
     }
 
     if (showDeleteDialog) {

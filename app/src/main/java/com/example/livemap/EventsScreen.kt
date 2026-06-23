@@ -169,7 +169,7 @@ private fun LoadedContent(
         if (state.nearby.isEmpty()) {
             item { EmptyHint("No events match your filters.") }
         } else {
-            items(state.nearby, key = { it.id }) { ev ->
+            items(state.nearby, key = { "nearby_${it.id}" }) { ev ->
                 EventCard(ev, "Join", true, CardKind.AVAILABLE, 
                     onAction = { onJoin(ev.id) },
                     onClick = { onEventClick(ev.id) }
@@ -181,7 +181,7 @@ private fun LoadedContent(
         if (state.joined.isEmpty()) {
             item { EmptyHint("You haven't joined any events yet.") }
         } else {
-            items(state.joined, key = { it.id }) { ev ->
+            items(state.joined, key = { "joined_${it.id}" }) { ev ->
                 EventCard(ev, "Joined", false, CardKind.JOINED,
                     onClick = { onEventClick(ev.id) }
                 )
@@ -192,7 +192,7 @@ private fun LoadedContent(
         if (state.recentlyJoined.isEmpty()) {
             item { EmptyHint("Nothing here yet — tap Join on an event.") }
         } else {
-            items(state.recentlyJoined, key = { it.id }) { ev ->
+            items(state.recentlyJoined, key = { "recently_${it.id}" }) { ev ->
                 EventCard(ev, "Joined", false, CardKind.JOINED,
                     onClick = { onEventClick(ev.id) }
                 )
@@ -203,7 +203,7 @@ private fun LoadedContent(
         if (state.owned.isEmpty()) {
             item { EmptyHint("You haven't created any events yet.") }
         } else {
-            items(state.owned, key = { it.id }) { ev ->
+            items(state.owned, key = { "owned_${it.id}" }) { ev ->
                 EventCard(ev, "Owner", false, CardKind.OWNER,
                     onClick = { onEventClick(ev.id) }
                 )
