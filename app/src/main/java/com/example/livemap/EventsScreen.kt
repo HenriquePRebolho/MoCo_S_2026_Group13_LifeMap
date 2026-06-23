@@ -73,7 +73,10 @@ enum class CardKind { AVAILABLE, JOINED, OWNER }
 
 /* ---------- Screen ---------- */
 @Composable
-fun EventsScreen(viewModel: EventsViewModel = viewModel()) {
+fun EventsScreen(
+    viewModel: EventsViewModel = viewModel(),
+    onNavigateToDetail: (String) -> Unit = {}
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val filters by viewModel.filters.collectAsStateWithLifecycle()
 
@@ -100,7 +103,8 @@ fun EventsScreen(viewModel: EventsViewModel = viewModel()) {
                 onMaxPeople = viewModel::setMaxPeople,
                 onTime = viewModel::setTime,
                 onClear = viewModel::clearFilters,
-                onJoin = viewModel::joinEvent
+                onJoin = viewModel::joinEvent,
+                onEventClick = onNavigateToDetail
             )
         }
     }
@@ -130,7 +134,8 @@ private fun LoadedContent(
     maxPeople: String?, onMaxPeople: (String?) -> Unit,
     time: String?, onTime: (String?) -> Unit,
     onClear: () -> Unit,
-    onJoin: (String) -> Unit
+    onJoin: (String) -> Unit,
+    onEventClick: (String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -163,7 +168,10 @@ private fun LoadedContent(
             item { EmptyHint("No events match your filters.") }
         } else {
             items(state.nearby, key = { it.id }) { ev ->
-                EventCard(ev, "Join", true, CardKind.AVAILABLE) { onJoin(ev.id) }
+                EventCard(ev, "Join", true, CardKind.AVAILABLE, 
+                    onAction = { onJoin(ev.id) },
+                    onClick = { onEventClick(ev.id) }
+                )
             }
         }
 
@@ -172,7 +180,9 @@ private fun LoadedContent(
             item { EmptyHint("You haven't joined any events yet.") }
         } else {
             items(state.joined, key = { it.id }) { ev ->
-                EventCard(ev, "Joined", false, CardKind.JOINED)
+                EventCard(ev, "Joined", false, CardKind.JOINED,
+                    onClick = { onEventClick(ev.id) }
+                )
             }
         }
 
@@ -181,7 +191,9 @@ private fun LoadedContent(
             item { EmptyHint("Nothing here yet — tap Join on an event.") }
         } else {
             items(state.recentlyJoined, key = { it.id }) { ev ->
-                EventCard(ev, "Joined", false, CardKind.JOINED)
+                EventCard(ev, "Joined", false, CardKind.JOINED,
+                    onClick = { onEventClick(ev.id) }
+                )
             }
         }
 
@@ -190,7 +202,9 @@ private fun LoadedContent(
             item { EmptyHint("You haven't created any events yet.") }
         } else {
             items(state.owned, key = { it.id }) { ev ->
-                EventCard(ev, "Owner", false, CardKind.OWNER)
+                EventCard(ev, "Owner", false, CardKind.OWNER,
+                    onClick = { onEventClick(ev.id) }
+                )
             }
         }
 
@@ -320,7 +334,8 @@ fun EventCard(
     actionLabel: String,
     actionEnabled: Boolean,
     cardKind: CardKind,
-    onAction: () -> Unit = {}
+    onAction: () -> Unit = {},
+    onClick: () -> Unit = {}
 ) {
     val (buttonColor, buttonContent) = when (cardKind) {
         CardKind.AVAILABLE -> JoinBrown to Color.White
@@ -334,7 +349,9 @@ fun EventCard(
         color = Color.White,
         shadowElevation = 4.dp,
         border = cardBorder,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickableNoRipple(onClick)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

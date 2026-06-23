@@ -143,7 +143,11 @@ fun App(modifier: Modifier = Modifier) {
             startDestination = TopDest.Events.route,
             modifier = Modifier.padding(padding)
         ) {
-            composable(TopDest.Events.route) { EventsScreen() }
+            composable(TopDest.Events.route) { 
+                EventsScreen(
+                    onNavigateToDetail = { eventId -> navController.navigate("events/$eventId") }
+                ) 
+            }
             composable(TopDest.Map.route) { MapScreen(vm) }
             composable(TopDest.New.route) { NewScreen(vm) }
             composable(TopDest.Friends.route) {
@@ -158,6 +162,16 @@ fun App(modifier: Modifier = Modifier) {
                 FriendDetailScreen(onBack = { navController.popBackStack() })
             }
             composable(TopDest.Profile.route) { ProfileScreen() }
+            composable(
+                route = "events/{eventId}",
+                arguments = listOf(navArgument("eventId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val eventId = backStackEntry.arguments?.getString("eventId") ?: ""
+                EventDetailScreen(
+                    eventId = eventId,
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }
