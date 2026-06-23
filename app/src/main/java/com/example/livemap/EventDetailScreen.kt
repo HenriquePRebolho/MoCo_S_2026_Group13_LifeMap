@@ -41,6 +41,9 @@ import java.util.*
 fun EventDetailScreen(
     eventId: String,
     onBack: () -> Unit,
+    onPickLocation: () -> Unit = {},
+    pickedLocation: PickedLocation? = null,
+    onPickedLocationConsumed: () -> Unit = {},
     viewModel: EventDetailViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -61,7 +64,10 @@ fun EventDetailScreen(
                 isJoined = s.isJoined,
                 onBack = onBack,
                 onToggleJoin = viewModel::toggleJoin,
-                onSave = viewModel::updateEvent
+                onSave = viewModel::updateEvent,
+                onPickLocation = onPickLocation,
+                pickedLocation = pickedLocation,
+                onPickedLocationConsumed = onPickedLocationConsumed
             )
         }
     }
@@ -75,10 +81,13 @@ private fun EventDetailContent(
     isJoined: Boolean,
     onBack: () -> Unit,
     onToggleJoin: () -> Unit,
-    onSave: (Event) -> Unit
+    onSave: (Event, Double?, Double?) -> Unit,
+    onPickLocation: () -> Unit = {},
+    pickedLocation: PickedLocation? = null,
+    onPickedLocationConsumed: () -> Unit = {}
 ) {
     var isEditing by remember { mutableStateOf(false) }
-    
+
     // Editable state
     var name by remember(event) { mutableStateOf(event.name) }
     var description by remember(event) { mutableStateOf(event.description) }
@@ -86,6 +95,22 @@ private fun EventDetailContent(
     var dateTime by remember(event) { mutableStateOf(event.dateTime) }
     var limitPeople by remember(event) { mutableStateOf(event.limitPeople.toString()) }
     var isPublic by remember(event) { mutableStateOf(event.isPublic) }
+
+    // Coordinates resolved from the map picker. Null means "not picked": on save
+    // the address text is geocoded (if it changed) or the existing coords kept.
+    // Cleared when the text is edited manually so it gets re-validated.
+    var locationLat by remember(event) { mutableStateOf<Double?>(null) }
+    var locationLng by remember(event) { mutableStateOf<Double?>(null) }
+
+    // When the picker returns a result, fill the address + store coordinates.
+    LaunchedEffect(pickedLocation) {
+        pickedLocation?.let {
+            locationText = it.address
+            locationLat = it.lat
+            locationLng = it.lng
+            onPickedLocationConsumed()
+        }
+    }
 
     val context = LocalContext.current
 
@@ -174,12 +199,30 @@ private fun EventDetailContent(
         // Location
         EventInfoField(
             valor = locationText,
-            onChange = { locationText = it },
+            onChange = {
+                locationText = it
+                // Manual edit invalidates the picked coordinates so the address
+                // gets re-validated (geocoded) on save.
+                locationLat = null
+                locationLng = null
+            },
             isEditing = isEditing,
             fontSize = 16.sp,
             font = Font(R.font.lexend_light, FontWeight.Normal),
             leadingIconPainter = painterResource(R.drawable.location_on)
         )
+
+        if (isEditing) {
+            TextButton(onClick = onPickLocation) {
+                Icon(
+                    painter = painterResource(R.drawable.location_on),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text("Select on map")
+            }
+        }
 
         Spacer(Modifier.height(8.dp))
 
@@ -216,14 +259,18 @@ private fun EventDetailContent(
                     }
                     Button(
                         onClick = {
-                            onSave(event.copy(
-                                name = name,
-                                description = description,
-                                locationText = locationText,
-                                dateTime = dateTime,
-                                limitPeople = limitPeople.toIntOrNull() ?: 0,
-                                isPublic = isPublic
-                            ))
+                            onSave(
+                                event.copy(
+                                    name = name,
+                                    description = description,
+                                    locationText = locationText,
+                                    dateTime = dateTime,
+                                    limitPeople = limitPeople.toIntOrNull() ?: 0,
+                                    isPublic = isPublic
+                                ),
+                                locationLat,
+                                locationLng
+                            )
                             isEditing = false
                         },
                         modifier = Modifier.weight(1f)

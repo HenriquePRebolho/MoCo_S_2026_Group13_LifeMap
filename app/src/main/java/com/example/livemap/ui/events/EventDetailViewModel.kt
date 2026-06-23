@@ -3,6 +3,7 @@ package com.example.livemap.ui.events
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.livemap.data.model.Event
+import com.example.livemap.aux_files.geocodeLocation
 import com.example.livemap.data.repository.AuthRepository
 import com.example.livemap.data.repository.EventRepository
 import com.google.firebase.Timestamp
@@ -68,14 +69,42 @@ class EventDetailViewModel(
         }
     }
 
-    fun updateEvent(updatedEvent: Event) {
-        if (currentUid == null || (_state.value as? EventDetailState.Loaded)?.isOwner != true) return
+    /**
+     * Updates the event. Mirrors the location handling of NewEventViewModel:
+     *   - If [pickedLat]/[pickedLng] are provided (the owner picked a point on the
+     *     map), they are used as-is.
+     *   - Otherwise, if the address text changed, it is geocoded to validate it.
+     *     A failed lookup leaves the event untouched and reports "Invalid location".
+     *   - If the address text is unchanged, the existing coordinates are kept.
+     */
+    fun updateEvent(updatedEvent: Event, pickedLat: Double? = null, pickedLng: Double? = null) {
+        if (currentUid == null) return
+        val loaded = _state.value as? EventDetailState.Loaded ?: return
+        if (!loaded.isOwner) return
+        val original = loaded.event
 
         viewModelScope.launch {
-            // Re-using createEvent logic but for update. 
-            // Better to have a dedicated updateEvent in repository, let's check if it exists or add it.
-            // For now, let's assume we need to add updateEvent to EventRepository or use a generic update.
-            eventRepository.updateEvent(eventId, updatedEvent).onSuccess {
+            // Resolve coordinates: prefer the ones picked on the map; otherwise
+            // geocode the typed address only if it changed, else keep the old ones.
+            var lat = pickedLat
+            var lng = pickedLng
+            if (lat == null || lng == null) {
+                if (updatedEvent.locationText != original.locationText) {
+                    val geo = geocodeLocation(updatedEvent.locationText)
+                    if (geo == null) {
+                        _state.value = EventDetailState.Error("Invalid location")
+                        return@launch
+                    }
+                    lat = geo.lat
+                    lng = geo.lng
+                } else {
+                    lat = original.locationLat
+                    lng = original.locationLng
+                }
+            }
+
+            val eventToSave = updatedEvent.copy(locationLat = lat, locationLng = lng)
+            eventRepository.updateEvent(eventId, eventToSave).onSuccess {
                 loadEvent()
             }.onFailure { e ->
                 _state.value = EventDetailState.Error(e.localizedMessage ?: "Failed to update event")

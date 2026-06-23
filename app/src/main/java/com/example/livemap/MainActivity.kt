@@ -206,9 +206,32 @@ fun App(modifier: Modifier = Modifier) {
                 arguments = listOf(navArgument("eventId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val eventId = backStackEntry.arguments?.getString("eventId") ?: ""
+
+                // Result coming back from the map location picker, passed via the
+                // back stack entry's savedStateHandle as three primitive keys
+                // (same mechanism the New screen uses).
+                val handle = backStackEntry.savedStateHandle
+                val lat by handle.getStateFlow<Double?>("picked_lat", null)
+                    .collectAsStateWithLifecycle()
+                val lng by handle.getStateFlow<Double?>("picked_lng", null)
+                    .collectAsStateWithLifecycle()
+                val address by handle.getStateFlow<String?>("picked_address", null)
+                    .collectAsStateWithLifecycle()
+
+                val picked = if (lat != null && lng != null && address != null) {
+                    PickedLocation(lat!!, lng!!, address!!)
+                } else null
+
                 EventDetailScreen(
                     eventId = eventId,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onPickLocation = { navController.navigate("location_picker") },
+                    pickedLocation = picked,
+                    onPickedLocationConsumed = {
+                        handle["picked_lat"] = null
+                        handle["picked_lng"] = null
+                        handle["picked_address"] = null
+                    }
                 )
             }
         }
