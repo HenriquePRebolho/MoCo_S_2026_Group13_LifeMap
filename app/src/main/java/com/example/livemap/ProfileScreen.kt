@@ -12,27 +12,37 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,57 +59,67 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.livemap.R
 import com.example.livemap.aux.createImageUri
 import com.example.livemap.aux_files.event_types
 import com.example.livemap.aux_files.languages
-import com.example.livemap.composables.EventInfoField
 import com.example.livemap.composables.SimpleSearchBar
 import com.example.livemap.ui.auth.AuthViewModel
 import com.example.livemap.ui.profile.ProfileViewModel
 import com.example.livemap.ui.theme.LiveMapTheme
 
 // Saver for List<String> edit state so it can be kept by rememberSaveable
-// (the default autoSaver can't persist an arbitrary List).
 private val stringListSaver = listSaver<List<String>, String>(
     save = { it.toList() },
     restore = { it }
 )
 
+/* ---------- Lavender Dream palette (Friends reference) ---------- */
+private val Lavender       = Color(0xFFDCC9F5)
+private val SoftPink       = Color(0xFFFFD6E0)
+private val LightBlue      = Color(0xFFD4E5FF)
+private val PrimaryPurple  = Color(0xFF8B6BBF)
+private val ScreenBg       = Color(0xFFFAF7FF)
+private val ChipBg         = Color(0xFFECE5F9)
+private val DarkText       = Color(0xFF3D2F5C)
+private val MutedText      = Color(0xFF6F5F88)
+private val SentGrey       = Color(0xFFB8AEC4)
+private val ChipPurpleText = Color(0xFF8B6BBF)
+private val PinkTextDark   = Color(0xFF8B2C4A)
+private val BlueTextDark   = Color(0xFF1E3A5F)
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProfileScreen(
     profileViewModel: ProfileViewModel = viewModel(),
     authViewModel: AuthViewModel = viewModel()
 ) {
-
     val userState by profileViewModel.user.collectAsState()
 
     if (userState == null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+        Box(modifier = Modifier.fillMaxSize().background(ScreenBg), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = PrimaryPurple)
         }
         return
     }
 
     val user = userState!!
-
     val context = LocalContext.current
     val isOnline by observeConnectivity(context)
 
-    // --- State for editing ---
-    // rememberSaveable (not plain remember) so an in-progress edit survives a
-    // bottom-tab switch and configuration changes; plain remember was discarded
-    // when the screen left composition, which is why edits "erased" on navigation.
     var isEditing by rememberSaveable(user.uid) { mutableStateOf(false) }
     var name by rememberSaveable(user.uid) { mutableStateOf(user.displayName) }
     var userDescription by rememberSaveable(user.uid) { mutableStateOf(user.description) }
@@ -117,27 +137,16 @@ fun ProfileScreen(
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
     var showSourceDialog by remember { mutableStateOf(false) }
 
-    // Launcher for Gallery (using Photo Picker)
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri ->
-            if (uri != null) {
-                capturedImageUri = uri
-            }
-        }
+        onResult = { uri -> if (uri != null) capturedImageUri = uri }
     )
 
-    // Launcher for Camera
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
-        onResult = { success ->
-            if (success) {
-                capturedImageUri = tempImageUri
-            }
-        }
+        onResult = { success -> if (success) capturedImageUri = tempImageUri }
     )
 
-    // Permission Launcher for Camera
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
@@ -153,307 +162,339 @@ fun ProfileScreen(
         }
     )
 
-
-
-    Column(
-        //horizontalAlignment = Alignment.Start,
-        modifier = Modifier.padding(horizontal=28.dp, vertical=16.dp).verticalScroll(rememberScrollState())
-    ) {
-        Column(horizontalAlignment = CenterHorizontally,
-            modifier = Modifier.fillMaxWidth()) {
-
-            // PHOTO //////////////////////////////////////////////////////////////////
-            Surface(
-                enabled = isEditing,
-                onClick = { showSourceDialog = true },
-                modifier = Modifier.size(100.dp),
-                color = MaterialTheme.colorScheme.background,
-                shape = CircleShape
+    Box(modifier = Modifier.fillMaxSize().background(ScreenBg)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                if (capturedImageUri != null) {
-                    AsyncImage(
-                        model = capturedImageUri,
-                        contentDescription = "Selected profile image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        onError = {
-                            Toast.makeText(context, "Error loading image", Toast.LENGTH_SHORT)
-                                .show()
-                        }
-                    )
-                } else if (user.photoUrl != null) {
-                    AsyncImage(
-                        model = user.photoUrl,
-                        contentDescription = "Profile image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        onError = {
-                            Toast.makeText(context, "Error loading image", Toast.LENGTH_SHORT)
-                                .show()
-                        }
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(id = R.drawable.account_circle),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Text("My Profile", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = DarkText)
+                if (!isEditing) {
+                    IconButton(onClick = { isEditing = true }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit Profile", tint = PrimaryPurple)
+                    }
                 }
             }
 
-            if (showSourceDialog) {
-                AlertDialog(
-                    onDismissRequest = { showSourceDialog = false },
-                    title = { Text("Update Profile Picture") },
-                    text = { Text("Choose how you want to update your profile picture.") },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            showSourceDialog = false
-                            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        }) {
-                            Text("Gallery")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = {
-                            showSourceDialog = false
-                            when (PackageManager.PERMISSION_GRANTED) {
-                                ContextCompat.checkSelfPermission(
-                                    context,
-                                    Manifest.permission.CAMERA
-                                ) -> {
-                                    val uri = createImageUri(context)
-                                    if (uri != null) {
-                                        tempImageUri = uri
-                                        cameraLauncher.launch(uri)
-                                    }
-                                }
-
-                                else -> {
-                                    permissionLauncher.launch(Manifest.permission.CAMERA)
-                                }
+            // Avatar & Name Card
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                shadowElevation = 4.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Profile Image
+                    Surface(
+                        onClick = { if (isEditing) showSourceDialog = true },
+                        enabled = isEditing,
+                        modifier = Modifier.size(100.dp),
+                        shape = CircleShape,
+                        color = ChipBg
+                    ) {
+                        if (capturedImageUri != null) {
+                            AsyncImage(
+                                model = capturedImageUri,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else if (user.photoUrl != null) {
+                            AsyncImage(
+                                model = user.photoUrl,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(modifier = Modifier.fillMaxSize().background(Lavender), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = name.firstOrNull()?.toString()?.uppercase() ?: "?",
+                                    fontSize = 36.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DarkText
+                                )
                             }
-                        }) {
-                            Text("Camera")
                         }
+                    }
+
+                    if (isEditing) {
+                        Text("Tap photo to change", fontSize = 12.sp, color = MutedText)
+                    }
+
+                    // Display Name & Bio Info
+                    if (isEditing) {
+                        ProfileTextField("Display Name", name, onValueChange = { name = it })
+                        ProfileTextField("Bio / Description", userDescription, onValueChange = { userDescription = it })
+                    } else {
+                        Text(name, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = DarkText)
+                        if (userDescription.isNotBlank()) {
+                            Text(
+                                text = userDescription,
+                                fontSize = 15.sp,
+                                color = MutedText,
+                                modifier = Modifier.align(CenterHorizontally)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Hobbies Section
+            Text("Hobbies", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkText)
+            if (isEditing) {
+                SimpleSearchBar(
+                    label = "Add a hobby...",
+                    textFieldState = hobbySearchBarState,
+                    onSearch = { },
+                    searchResults = hobbiesOptions,
+                    onFriendClicked = { hobby -> 
+                        addedHobbies = addedHobbies + hobby
+                        hobbiesOptions = hobbiesOptions - hobby 
                     }
                 )
             }
-            ///////////////////////////////////////////////////////////////////////////
 
-
-            // NAME ////////////////////////////////////////////////////////////////////
-            EventInfoField(valor = name, onChange = { name = it }, isEditing = isEditing, horizontalArrangement = Arrangement.Center, font = Font(R.font.lexend_bold, FontWeight.Bold))
-            ///////////////////////////////////////////////////////////////////////////
-
-
-            // DESCRIPTION ////////////////////////////////////////////////////////////
-            EventInfoField(valor = userDescription, onChange = { userDescription = it }, isEditing = isEditing, horizontalArrangement = Arrangement.Center)
-            ///////////////////////////////////////////////////////////////////////////
-        }
-
-
-        // TAGS ////////////////////////////////////////////////////////////////
-        Text("Hobbies", modifier = Modifier.padding(top=4.dp))
-        if (isEditing) {
-            SimpleSearchBar(
-                label = "Hobbies",
-                textFieldState = hobbySearchBarState,
-                onSearch = { },
-                searchResults = hobbiesOptions,
-                onFriendClicked = { hobby -> 
-                    addedHobbies = addedHobbies + hobby
-                    hobbiesOptions = hobbiesOptions - hobby 
-                },
-            )
-        }
-        FlowRow(
-            modifier = Modifier.fillMaxWidth().padding(vertical=8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            addedHobbies.forEach { hobby ->
-                Surface(
-                    shape = RoundedCornerShape(50), // Pill shape
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shadowElevation = 2.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                addedHobbies.forEach { hobby ->
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = ChipBg,
+                        modifier = if (isEditing) Modifier.clickable {
+                            addedHobbies = addedHobbies - hobby
+                            if (hobby in event_types) hobbiesOptions = (hobbiesOptions + hobby).sorted()
+                        } else Modifier
                     ) {
-                        Text(text = hobby, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                        if (isEditing) {
-                            IconButton(onClick = { 
-                                addedHobbies = addedHobbies - hobby
-                                if (hobby in event_types) hobbiesOptions = (hobbiesOptions + hobby).sorted()
-                            }) {
-                                Icon(
-                                    painterResource(R.drawable.cancel),
-                                    contentDescription = "Remove hobby",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(hobby, fontSize = 13.sp, color = ChipPurpleText, fontWeight = FontWeight.SemiBold)
+                            if (isEditing) {
+                                Spacer(Modifier.width(4.dp))
+                                Icon(painterResource(R.drawable.cancel), contentDescription = null, modifier = Modifier.size(14.dp), tint = PrimaryPurple)
                             }
                         }
                     }
                 }
             }
-        }
-        ///////////////////////////////////////////////////////////////////////////
 
+            // Languages Section
+            Text("Languages", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkText)
+            if (isEditing) {
+                SimpleSearchBar(
+                    label = "Add a language...",
+                    textFieldState = languageSearchBarState,
+                    onSearch = { },
+                    searchResults = languagesOptions,
+                    onFriendClicked = { lang -> 
+                        addedLanguages = addedLanguages + lang
+                        languagesOptions = languagesOptions - lang
+                    }
+                )
+            }
 
-        // LANGUAGES //////////////////////////////////////////////////////////////
-        Text("Languages", modifier = Modifier.padding(top=4.dp))
-        if (isEditing) {
-            SimpleSearchBar(
-                label = "Languages",
-                textFieldState = languageSearchBarState,
-                onSearch = { },
-                searchResults = languagesOptions,
-                onFriendClicked = { lang -> 
-                    addedLanguages = addedLanguages + lang
-                    languagesOptions = languagesOptions - lang
-                },
-            )
-        }
-        FlowRow(
-            modifier = Modifier.fillMaxWidth().padding(vertical=8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            addedLanguages.forEach { language ->
-                Surface(
-                    shape = RoundedCornerShape(50), // Pill shape
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shadowElevation = 2.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                addedLanguages.forEach { language ->
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = SoftPink,
+                        modifier = if (isEditing) Modifier.clickable {
+                            addedLanguages = addedLanguages - language
+                            if (language in languages) languagesOptions = (languagesOptions + language).sorted()
+                        } else Modifier
                     ) {
-                        Text(text = language, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                        if (isEditing) {
-                            IconButton(onClick = { 
-                                addedLanguages = addedLanguages - language
-                                if (language in languages) languagesOptions = (languagesOptions + language).sorted()
-                            }) {
-                                Icon(
-                                    painterResource(R.drawable.cancel),
-                                    contentDescription = "Remove language",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(language, fontSize = 13.sp, color = PinkTextDark, fontWeight = FontWeight.SemiBold)
+                            if (isEditing) {
+                                Spacer(Modifier.width(4.dp))
+                                Icon(painterResource(R.drawable.cancel), contentDescription = null, modifier = Modifier.size(14.dp), tint = PinkTextDark)
                             }
                         }
                     }
                 }
             }
-        }
-        ///////////////////////////////////////////////////////////////////////////
 
-
-        // LOCATION ///////////////////////////////////////////////////////////////
-        EventInfoField(valor = userLocation, onChange = { userLocation = it }, isEditing = isEditing, leadingIconPainter = painterResource(R.drawable.home))
-        ///////////////////////////////////////////////////////////////////////////
-
-
-        // BIRTHDAY ///////////////////////////////////////////////////////////////
-        EventInfoField(valor = userInstagram, onChange = { userInstagram = it }, isEditing = isEditing, leadingIconPainter = painterResource(R.drawable.language))
-        ///////////////////////////////////////////////////////////////////////////
-
-
-        // PHONE //////////////////////////////////////////////////////////////////
-        EventInfoField(valor = userPhone, onChange = { userPhone = it }, isEditing = isEditing, leadingIconPainter = painterResource(R.drawable.phone))
-        ///////////////////////////////////////////////////////////////////////////
-
-
-        // EMAIL //////////////////////////////////////////////////////////////////
-        val userEmail = user.email
-        EventInfoField(valor = userEmail, onChange = { /* Email is usually not editable this way */ }, isEditing = false, leadingIconPainter = painterResource(R.drawable.mail))
-        ///////////////////////////////////////////////////////////////////////////
-
-
-        // Note: Password and sensitive info are handled by Firebase Auth, not stored in Firestore User doc.
-
-
-        if (isEditing) {
-            Button(
-                onClick = {
-                    // Revert the draft back to the persisted values, then exit edit mode.
-                    name = user.displayName
-                    userDescription = user.description
-                    userLocation = user.location
-                    userInstagram = user.instagram
-                    userPhone = user.phone
-                    addedHobbies = user.hobbies
-                    addedLanguages = user.languages
-                    hobbiesOptions = event_types.filter { it !in user.hobbies }.sorted()
-                    languagesOptions = languages.filter { it !in user.languages }.sorted()
-                    hobbySearchBarState.edit { replace(0, length, "") }
-                    languageSearchBarState.edit { replace(0, length, "") }
-                    capturedImageUri = null
-                    isEditing = false
-                },
+            // Contact Info Fields
+            Text("Contact & Info", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkText)
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                shadowElevation = 4.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Discard changes")
-            }
-            Button(
-                enabled = isOnline,
-                onClick = {
-                    val updates = mapOf(
-                        "displayName" to name,
-                        "displayNameLower" to name.lowercase(),
-                        "description" to userDescription,
-                        "hobbies" to addedHobbies,
-                        "languages" to addedLanguages,
-                        "location" to userLocation,
-                        "instagram" to userInstagram,
-                        "phone" to userPhone
-                    )
-                    // Only leave edit mode if the write actually persisted; otherwise
-                    // surface the error so a rejected write isn't lost silently.
-                    profileViewModel.updateProfile(updates, capturedImageUri) { result ->
-                        result
-                            .onSuccess {
-                                Toast.makeText(context, "Profile saved", Toast.LENGTH_SHORT).show()
-                                capturedImageUri = null
-                                isEditing = false
-                            }
-                            .onFailure { e ->
-                                Toast.makeText(
-                                    context,
-                                    "Couldn't save profile: ${e.localizedMessage ?: "unknown error"}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (isEditing) {
+                        ProfileTextField("Location", userLocation, R.drawable.home, onValueChange = { userLocation = it })
+                        ProfileTextField("Instagram / Social", userInstagram, R.drawable.language, onValueChange = { userInstagram = it })
+                        ProfileTextField("Phone", userPhone, R.drawable.phone, onValueChange = { userPhone = it })
+                    } else {
+                        InfoRow(R.drawable.home, "Location", userLocation.ifBlank { "Not set" })
+                        InfoRow(R.drawable.language, "Social", userInstagram.ifBlank { "Not set" })
+                        InfoRow(R.drawable.phone, "Phone", userPhone.ifBlank { "Not set" })
+                        InfoRow(R.drawable.mail, "Email", user.email)
                     }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (isOnline) "Save changes" else "No internet connection")
+                }
             }
-        } else {
-            Button(
-                enabled = isOnline,
-                onClick = { isEditing = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(text = if (isOnline) "Edit profile" else "No internet connection")
-            }
-        }
-        ///////////////////////////////////////////////////////////////////////////
 
-        // TEMPORARY logout button
-        Button(onClick = { authViewModel.logout() }) {
-            //  Icon(painterResource(R.drawable.logout), contentDescription = null)
-            Text("Logout")
+            // Save / Discard / Logout Actions
+            if (isEditing) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            name = user.displayName
+                            userDescription = user.description
+                            userLocation = user.location
+                            userInstagram = user.instagram
+                            userPhone = user.phone
+                            addedHobbies = user.hobbies
+                            addedLanguages = user.languages
+                            hobbiesOptions = event_types.filter { it !in user.hobbies }.sorted()
+                            languagesOptions = languages.filter { it !in user.languages }.sorted()
+                            capturedImageUri = null
+                            isEditing = false
+                        },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryPurple),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryPurple)
+                    ) {
+                        Text("Discard")
+                    }
+
+                    Button(
+                        enabled = isOnline,
+                        onClick = {
+                            val updates = mapOf(
+                                "displayName" to name,
+                                "displayNameLower" to name.lowercase(),
+                                "description" to userDescription,
+                                "hobbies" to addedHobbies,
+                                "languages" to addedLanguages,
+                                "location" to userLocation,
+                                "instagram" to userInstagram,
+                                "phone" to userPhone
+                            )
+                            profileViewModel.updateProfile(updates, capturedImageUri) { result ->
+                                result.onSuccess {
+                                    Toast.makeText(context, "Profile saved", Toast.LENGTH_SHORT).show()
+                                    capturedImageUri = null
+                                    isEditing = false
+                                }.onFailure { e ->
+                                    Toast.makeText(context, "Couldn't save profile: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple)
+                    ) {
+                        Text(if (isOnline) "Save" else "Offline")
+                    }
+                }
+            } else {
+                OutlinedButton(
+                    onClick = { authViewModel.logout() },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE57373)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE57373))
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Logout", fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(Modifier.height(40.dp))
+        }
+    }
+
+    if (showSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showSourceDialog = false },
+            title = { Text("Update Profile Picture") },
+            text = { Text("Choose how you want to update your profile picture.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSourceDialog = false
+                    galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }) { Text("Gallery") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showSourceDialog = false
+                    when (PackageManager.PERMISSION_GRANTED) {
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) -> {
+                            val uri = createImageUri(context)
+                            if (uri != null) {
+                                tempImageUri = uri
+                                cameraLauncher.launch(uri)
+                            }
+                        }
+                        else -> permissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                }) { Text("Camera") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun InfoRow(icon: Int, label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(20.dp), tint = MutedText)
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(label, fontSize = 11.sp, color = MutedText)
+            Text(value, fontSize = 15.sp, color = DarkText, fontWeight = FontWeight.Medium)
         }
     }
 }
 
+@Composable
+private fun ProfileTextField(label: String, value: String, icon: Int? = null, onValueChange: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, fontSize = 12.sp, color = MutedText, fontWeight = FontWeight.Medium)
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            leadingIcon = icon?.let { { Icon(painterResource(it), null, modifier = Modifier.size(18.dp), tint = MutedText) } },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = PrimaryPurple,
+                unfocusedBorderColor = ChipBg,
+                focusedContainerColor = Color(0xFFF9F9F9),
+                unfocusedContainerColor = Color(0xFFF9F9F9)
+            ),
+            singleLine = true
+        )
+    }
+}
 
 @Composable
 fun observeConnectivity(context: Context): State<Boolean> {
@@ -464,9 +505,7 @@ fun observeConnectivity(context: Context): State<Boolean> {
             override fun onLost(network: android.net.Network) { value = false }
         }
         connectivityManager.registerDefaultNetworkCallback(callback)
-        awaitDispose {
-            connectivityManager.unregisterNetworkCallback(callback)
-        }
+        awaitDispose { connectivityManager.unregisterNetworkCallback(callback) }
     }
 }
 
@@ -476,37 +515,12 @@ private fun checkIsOnline(context: Context): Boolean {
     return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
 }
 
-@Composable
-fun ProfileInfoButton(field: String, value: String, svg: Int, color: Color) {
-    Surface(shape = RoundedCornerShape(10.dp),
-        color = Color.White,
-        shadowElevation = 10.dp,
-        modifier = Modifier.fillMaxWidth().height(100.dp).padding(bottom = 10.dp))
-    {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = CircleShape, modifier = Modifier.padding(start = 16.dp)) {
-                Icon(
-                    painter = painterResource(svg),
-                    tint = Color.White,
-                    contentDescription = null,
-                    modifier = Modifier.background(color).padding(5.dp)
-                )
-            }
-            Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.Center) {
-                Text(text = field, fontWeight = FontWeight.Light, modifier = Modifier.fillMaxWidth())
-                Text(text = value, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
-            }
-        }
-    }
-}
-
-
 @SuppressLint("ViewModelConstructorInComposable")
 @Preview
-@Composable()
+@Composable
 fun PreviewProfileScreen() {
-        LiveMapTheme(dynamicColor = false) {
-        Surface(color = MaterialTheme.colorScheme.background) {
+    LiveMapTheme(dynamicColor = false) {
+        Surface(color = ScreenBg) {
             ProfileScreen()
         }
     }

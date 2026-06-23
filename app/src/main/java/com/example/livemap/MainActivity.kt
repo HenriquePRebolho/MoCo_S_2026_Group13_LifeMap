@@ -149,7 +149,7 @@ fun App(modifier: Modifier = Modifier) {
                 ) 
             }
             composable(TopDest.Map.route) { MapScreen(vm) }
-            composable(TopDest.New.route) { NewScreen(vm) }
+            composable(TopDest.New.route) { NewScreen() }
             composable(TopDest.Friends.route) {
                 FriendsScreen(
                     onNavigateToFriendDetail = { uid -> navController.navigate("friends/$uid") }
