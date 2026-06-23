@@ -1,6 +1,7 @@
 package com.example.livemap.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.DocumentId
 
 /**
  * Represents a LifeMap user.
@@ -15,6 +16,12 @@ import com.google.firebase.Timestamp
  *   - Password is NOT stored here, Firebase Auth handles credentials.
  */
 data class User(
+    // The Firestore document ID (== Firebase Auth uid). It is NOT stored as a
+    // field in the document, so without @DocumentId every User deserialized to
+    // uid = "". That made all FriendUi keys equal "" and crashed FriendsScreen's
+    // LazyColumn ("Key \"\" was already used"). @DocumentId tells Firestore to
+    // populate this from the document ID on read.
+    @DocumentId
     val uid: String = "",
 
     // Display name shown across the app

@@ -7,9 +7,12 @@ import com.example.livemap.data.model.Friendship
 import com.example.livemap.data.repository.AuthRepository
 import com.example.livemap.data.repository.FriendshipRepository
 import com.example.livemap.data.repository.UserRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
@@ -37,10 +40,24 @@ class FriendDetailViewModel(
     private val friendshipRepository: FriendshipRepository = FriendshipRepository()
 ) : ViewModel() {
 
+    // Secondary constructor with exactly (SavedStateHandle) so the default
+    // SavedStateViewModelFactory can instantiate this VM from the nav route.
+    // Without it, viewModel() can't find a usable constructor and crashes.
+    constructor(savedStateHandle: SavedStateHandle) : this(
+        savedStateHandle,
+        AuthRepository(),
+        UserRepository(),
+        FriendshipRepository()
+    )
+
     // Pulled from the navigation route. If the route was "friends/abc123",
     // then friendUid == "abc123".
     private val friendUid: String = savedStateHandle.get<String>("uid") ?: ""
     private val currentUid: String? = authRepository.currentUser()?.uid
+
+    // One-shot user-facing messages (success/error of an action).
+    private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val messages: SharedFlow<String> = _messages.asSharedFlow()
 
     val state: StateFlow<FriendDetailState> = if (currentUid == null || friendUid.isBlank()) {
         MutableStateFlow<FriendDetailState>(
@@ -83,6 +100,8 @@ class FriendDetailViewModel(
         if (friendUid.isBlank() || friendUid == uid) return
         viewModelScope.launch {
             friendshipRepository.sendRequest(uid, friendUid)
+                .onSuccess { _messages.tryEmit("Friend request sent") }
+                .onFailure { _messages.tryEmit("Couldn't send request: ${it.localizedMessage ?: "unknown error"}") }
         }
     }
 
@@ -90,6 +109,8 @@ class FriendDetailViewModel(
         val uid = currentUid ?: return
         viewModelScope.launch {
             friendshipRepository.acceptRequest(Friendship.buildId(uid, friendUid))
+                .onSuccess { _messages.tryEmit("Friend request accepted") }
+                .onFailure { _messages.tryEmit("Couldn't accept request: ${it.localizedMessage ?: "unknown error"}") }
         }
     }
 
@@ -98,6 +119,8 @@ class FriendDetailViewModel(
         val uid = currentUid ?: return
         viewModelScope.launch {
             friendshipRepository.removeFriendship(Friendship.buildId(uid, friendUid))
+                .onSuccess { _messages.tryEmit("Done") }
+                .onFailure { _messages.tryEmit("Action failed: ${it.localizedMessage ?: "unknown error"}") }
         }
     }
 }
