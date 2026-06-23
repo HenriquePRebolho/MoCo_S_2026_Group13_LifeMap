@@ -120,24 +120,6 @@ private fun EventDetailContent(
 
         Spacer(Modifier.height(16.dp))
 
-        // Placeholder for Photo
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .clip(RoundedCornerShape(12.dp)),
-            color = MaterialTheme.colorScheme.surfaceVariant
-        ) {
-            Image(
-                painter = painterResource(R.drawable.park),
-                contentDescription = "Event photo",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        }
-
-        Spacer(Modifier.height(16.dp))
-
         EventInfoField(
             valor = name,
             onChange = { name = it },
