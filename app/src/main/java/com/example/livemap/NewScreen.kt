@@ -1,7 +1,6 @@
 package com.example.livemap
 
 import android.annotation.SuppressLint
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,7 +24,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,13 +35,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,20 +56,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.livemap.R
 import com.example.livemap.aux_files.event_types
 import com.example.livemap.composables.DateTimePickerModal
 import com.example.livemap.composables.SimpleSearchBar
-import com.example.livemap.composables.TextField
-import com.example.livemap.aux_files.event_types
-import com.example.livemap.aux_files.localDateTimeSaver
-import com.example.livemap.aux_files.stringListSaver
-import com.example.livemap.ui.theme.LiveMapTheme
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.collectAsState
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.livemap.ui.events.NewEventState
 import com.example.livemap.ui.events.NewEventViewModel
+import com.example.livemap.ui.events.PickedLocation
 import com.example.livemap.ui.theme.LiveMapTheme
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -92,14 +82,11 @@ private val DarkText     = Color(0xFF3D4A2A)
 private val BodyText     = Color(0xFF5C3522)
 private val MutedText    = Color(0xFF8B5E47)
 private val SageText     = Color(0xFF6B7855)
-/** Result handed back from the map location picker (see LocationPickerScreen). */
-data class PickedLocation(val lat: Double, val lng: Double, val address: String)
 
 @SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewScreen(
-    vm: CounterViewModel,
     newEventViewModel: NewEventViewModel = viewModel(),
     onPickLocation: () -> Unit = {},
     pickedLocation: PickedLocation? = null,
@@ -117,6 +104,20 @@ fun NewScreen(
     var isPublic by remember { mutableStateOf(true) }
     var addedEvents by remember { mutableStateOf(listOf<String>()) }
     var addedFriendIds by remember { mutableStateOf(listOf<String>()) }
+
+    // Coordinates resolved from the map picker.
+    var eventLat by remember { mutableStateOf<Double?>(null) }
+    var eventLng by remember { mutableStateOf<Double?>(null) }
+
+    // When the picker returns a result, fill the field + store coordinates.
+    LaunchedEffect(pickedLocation) {
+        pickedLocation?.let {
+            eventLocation = it.address
+            eventLat = it.lat
+            eventLng = it.lng
+            onPickedLocationConsumed()
+        }
+    }
 
     val peopleLimitInt = peopleLimit.toIntOrNull() ?: 0
 
@@ -144,7 +145,33 @@ fun NewScreen(
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     NewEventTextField("Event Name", eventName, onChange = { eventName = it }, icon = Icons.Default.Edit)
                     NewEventTextField("Event Description", eventDescription, onChange = { eventDescription = it }, icon = Icons.Default.Description)
-                    NewEventTextField("Event Location", eventLocation, onChange = { eventLocation = it }, icon = R.drawable.location_on)
+                    
+                    Column {
+                        NewEventTextField(
+                            "Event Location", 
+                            eventLocation, 
+                            onChange = { 
+                                eventLocation = it
+                                // Manual edit invalidates the picked coordinates.
+                                eventLat = null
+                                eventLng = null
+                            }, 
+                            icon = R.drawable.location_on
+                        )
+                        TextButton(
+                            onClick = onPickLocation,
+                            modifier = Modifier.padding(start = 32.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.location_on),
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = SageDark
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Select on map", color = SageDark, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
 
                     var showPicker by remember { mutableStateOf(false) }
                     val displayDateTime = selectedDateTime?.format(DateTimeFormatter.ofPattern("MMM dd, yyyy - HH:mm")) ?: ""
@@ -302,56 +329,7 @@ fun NewScreen(
                     eventLocation.isNotBlank() &&
                     selectedDateTime != null
 
-        
-      val isSubmitting = state is NewEventState.Submitting
-      
-      // LOCATION /////////////////////////////////////////////////////////
-        var eventLocation by rememberSaveable { mutableStateOf("") }
-        // Coordinates resolved from the map picker. Null until the user picks a
-        // point; cleared when the text is edited manually so the address gets
-        // re-validated (geocoded) on submit.
-        var eventLat by rememberSaveable { mutableStateOf<Double?>(null) }
-        var eventLng by rememberSaveable { mutableStateOf<Double?>(null) }
-
-        // When the picker returns a result, fill the field + store coordinates.
-        LaunchedEffect(pickedLocation) {
-            pickedLocation?.let {
-                eventLocation = it.address
-                eventLat = it.lat
-                eventLng = it.lng
-                onPickedLocationConsumed()
-            }
-        }
-
-        TextField("Event Location", eventLocation, onChange = {
-            eventLocation = it
-            // Manual edit invalidates the picked coordinates.
-            eventLat = null
-            eventLng = null
-        })
-        TextButton(onClick = onPickLocation) {
-            Icon(
-                painter = painterResource(R.drawable.location_on),
-                contentDescription = null
-            )
-            Spacer(modifier = Modifier.size(4.dp))
-            Text("Select on map")
-        }
-        ////////////////////////////////////////////////////////////////////
-
-
-        // DATETIME ////////////////////////////////////////////////////////
-        var showPicker by remember { mutableStateOf(false) }
-        var selectedDateTime by rememberSaveable(stateSaver = localDateTimeSaver) { mutableStateOf<LocalDateTime?>(null) }
-
-        // Trigger field (reuses your existing PopUpTextField)
-        PopUpTextField(
-            label = "Date & Time",
-            valor = selectedDateTime
-                ?.format(DateTimeFormatter.ofPattern("MMM dd, yyyy - HH:mm"))
-                ?: "",
-            onClick = { showPicker = true }
-        )
+            val isSubmitting = state is NewEventState.Submitting
 
             Button(
                 onClick = {
@@ -367,7 +345,9 @@ fun NewScreen(
                         isPublic = isPublic,
                         limitPeople = peopleLimitInt,
                         tags = addedEvents,
-                        invitedFriends = addedFriendIds
+                        invitedFriends = addedFriendIds,
+                        locationLat = eventLat,
+                        locationLng = eventLng
                     )
                 },
                 enabled = conditions && !isSubmitting,
@@ -393,6 +373,7 @@ fun NewScreen(
                     newEventViewModel.resetState()
                     eventName = ""; eventDescription = ""; eventLocation = ""; selectedDateTime = null
                     addedEvents = emptyList(); addedFriendIds = emptyList(); peopleLimit = ""
+                    eventLat = null; eventLng = null
                 }
                 is NewEventState.Error -> {
                     Text(text = s.message, color = Color.Red, modifier = Modifier.padding(top = 8.dp), fontSize = 13.sp)

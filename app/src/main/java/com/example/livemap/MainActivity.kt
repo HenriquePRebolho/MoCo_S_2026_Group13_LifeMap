@@ -41,6 +41,7 @@ import androidx.navigation.navArgument
 import com.example.livemap.data.repository.AuthState
 import com.example.livemap.ui.auth.AuthNavHost
 import com.example.livemap.ui.auth.AuthViewModel
+import com.example.livemap.ui.events.PickedLocation
 import com.example.livemap.ui.theme.LiveMapTheme
 
 class MainActivity : ComponentActivity() {
@@ -165,7 +166,6 @@ fun App(modifier: Modifier = Modifier) {
                 } else null
 
                 NewScreen(
-                    vm = vm,
                     onPickLocation = { navController.navigate("location_picker") },
                     pickedLocation = picked,
                     onPickedLocationConsumed = {
