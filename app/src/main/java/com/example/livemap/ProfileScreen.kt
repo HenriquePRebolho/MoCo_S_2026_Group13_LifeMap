@@ -77,6 +77,8 @@ import com.example.livemap.R
 import com.example.livemap.aux.createImageUri
 import com.example.livemap.aux_files.event_types
 import com.example.livemap.aux_files.languages
+import com.example.livemap.aux_files.stringListSaver
+import com.example.livemap.composables.EventInfoField
 import com.example.livemap.composables.SimpleSearchBar
 import com.example.livemap.ui.auth.AuthViewModel
 import com.example.livemap.ui.profile.ProfileViewModel

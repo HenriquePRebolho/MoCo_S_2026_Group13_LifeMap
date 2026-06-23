@@ -41,6 +41,7 @@ import androidx.navigation.navArgument
 import com.example.livemap.data.repository.AuthState
 import com.example.livemap.ui.auth.AuthNavHost
 import com.example.livemap.ui.auth.AuthViewModel
+import com.example.livemap.ui.events.PickedLocation
 import com.example.livemap.ui.theme.LiveMapTheme
 
 class MainActivity : ComponentActivity() {
@@ -148,8 +149,46 @@ fun App(modifier: Modifier = Modifier) {
                     onNavigateToDetail = { eventId -> navController.navigate("events/$eventId") }
                 ) 
             }
-            composable(TopDest.Map.route) { MapScreen(vm) }
-            composable(TopDest.New.route) { NewScreen() }
+            composable(TopDest.Map.route) { MapScreen() }
+            composable(TopDest.New.route) { entry ->
+                // Result coming back from the map location picker, passed via the
+                // back stack entry's savedStateHandle as three primitive keys.
+                val handle = entry.savedStateHandle
+                val lat by handle.getStateFlow<Double?>("picked_lat", null)
+                    .collectAsStateWithLifecycle()
+                val lng by handle.getStateFlow<Double?>("picked_lng", null)
+                    .collectAsStateWithLifecycle()
+                val address by handle.getStateFlow<String?>("picked_address", null)
+                    .collectAsStateWithLifecycle()
+
+                val picked = if (lat != null && lng != null && address != null) {
+                    PickedLocation(lat!!, lng!!, address!!)
+                } else null
+
+                NewScreen(
+                    onPickLocation = { navController.navigate("location_picker") },
+                    pickedLocation = picked,
+                    onPickedLocationConsumed = {
+                        handle["picked_lat"] = null
+                        handle["picked_lng"] = null
+                        handle["picked_address"] = null
+                    }
+                )
+            }
+            composable("location_picker") {
+                LocationPickerScreen(
+                    onConfirm = { lat, lng, address ->
+                        // Hand the result back to the New screen and pop.
+                        navController.previousBackStackEntry?.savedStateHandle?.apply {
+                            set("picked_lat", lat)
+                            set("picked_lng", lng)
+                            set("picked_address", address)
+                        }
+                        navController.popBackStack()
+                    },
+                    onCancel = { navController.popBackStack() }
+                )
+            }
             composable(TopDest.Friends.route) {
                 FriendsScreen(
                     onNavigateToFriendDetail = { uid -> navController.navigate("friends/$uid") }
@@ -167,9 +206,32 @@ fun App(modifier: Modifier = Modifier) {
                 arguments = listOf(navArgument("eventId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val eventId = backStackEntry.arguments?.getString("eventId") ?: ""
+
+                // Result coming back from the map location picker, passed via the
+                // back stack entry's savedStateHandle as three primitive keys
+                // (same mechanism the New screen uses).
+                val handle = backStackEntry.savedStateHandle
+                val lat by handle.getStateFlow<Double?>("picked_lat", null)
+                    .collectAsStateWithLifecycle()
+                val lng by handle.getStateFlow<Double?>("picked_lng", null)
+                    .collectAsStateWithLifecycle()
+                val address by handle.getStateFlow<String?>("picked_address", null)
+                    .collectAsStateWithLifecycle()
+
+                val picked = if (lat != null && lng != null && address != null) {
+                    PickedLocation(lat!!, lng!!, address!!)
+                } else null
+
                 EventDetailScreen(
                     eventId = eventId,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onPickLocation = { navController.navigate("location_picker") },
+                    pickedLocation = picked,
+                    onPickedLocationConsumed = {
+                        handle["picked_lat"] = null
+                        handle["picked_lng"] = null
+                        handle["picked_address"] = null
+                    }
                 )
             }
         }

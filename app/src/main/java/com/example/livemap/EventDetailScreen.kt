@@ -23,60 +23,87 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.VectorPainter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.material.icons.automirrored.filled.Label
-import com.example.livemap.R
 import com.example.livemap.aux_files.event_types
 import com.example.livemap.composables.DateTimePickerModal
+import com.example.livemap.composables.EventInfoField
 import com.example.livemap.composables.SimpleSearchBar
 import com.example.livemap.data.model.Event
 import com.example.livemap.data.model.User
-import com.example.livemap.ui.events.EventDetailState
 import com.example.livemap.ui.events.EventDetailViewModel
+import com.example.livemap.ui.events.EventDetailState
+import com.example.livemap.ui.events.PickedLocation
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.time.ZoneId
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
-/* ---------- Peach + Sage + Honey palette (Events reference) ---------- */
-private val Peach        = Color(0xFFFFD4B8)
-private val Sage         = Color(0xFFC8D5B0)
-private val Honey        = Color(0xFFF0DDB0)
-private val Sand         = Color(0xFFE8D0C5)
-private val SageDark     = Color(0xFF8FA968)
-private val JoinBrown    = Color(0xFFB07A4D)
+/* ---------- Peach & Sage palette (Events reference) ---------- */
+private val Peach       = Color(0xFFFFD8B1)
+private val Sage        = Color(0xFFC1D4A6)
+private val Honey       = Color(0xFFFFE5A0)
+private val Sand        = Color(0xFFF4EDE4)
+private val SageDark    = Color(0xFF8FA968)
+private val JoinBrown   = Color(0xFF5C3522)
 
-private val ScreenBg     = Color(0xFFFBF6EE)
-private val ChipBg       = Color(0xFFEAE5D6)
-private val DarkText     = Color(0xFF3D4A2A)
-private val BodyText     = Color(0xFF5C3522)
-private val MutedText    = Color(0xFF8B5E47)
-private val SageText     = Color(0xFF6B7855)
+private val ScreenBg    = Color(0xFFFBF6EE)
+private val ChipBg      = Color(0xFFE8E1D5)
+private val DarkText    = Color(0xFF2D1E17)
+private val BodyText    = Color(0xFF5C3522)
+private val MutedText   = Color(0xFF9E897E)
+private val SageText    = Color(0xFF6B7F4E)
 
 @Composable
 fun EventDetailScreen(
     eventId: String,
     onBack: () -> Unit,
+    onPickLocation: () -> Unit,
+    pickedLocation: PickedLocation?,
+    onPickedLocationConsumed: () -> Unit,
     viewModel: EventDetailViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -85,15 +112,16 @@ fun EventDetailScreen(
         }
     )
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val allUsers by viewModel.allUsers.collectAsStateWithLifecycle()
-    val friends by viewModel.friends.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsState()
+    val allUsers by viewModel.allUsers.collectAsState()
+    val friends by viewModel.friends.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize().background(ScreenBg)) {
-        when (val s = state) {
-            is EventDetailState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = SageDark)
-            is EventDetailState.Error -> Text(s.message, modifier = Modifier.align(Alignment.Center), color = DarkText)
-            is EventDetailState.Loaded -> EventDetailContent(
+        val s = state
+        if (s is EventDetailState.Loading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = SageDark)
+        } else if (s is EventDetailState.Loaded) {
+            EventDetailContent(
                 event = s.event,
                 allUsers = allUsers,
                 friends = friends,
@@ -102,8 +130,13 @@ fun EventDetailScreen(
                 onBack = onBack,
                 onToggleJoin = viewModel::toggleJoin,
                 onSave = viewModel::updateEvent,
+                onPickLocation = onPickLocation,
+                pickedLocation = pickedLocation,
+                onPickedLocationConsumed = onPickedLocationConsumed,
                 onDelete = { viewModel.deleteEvent(onSuccess = onBack) }
             )
+        } else if (s is EventDetailState.Error) {
+            Text(s.message, modifier = Modifier.align(Alignment.Center), color = Color.Red)
         }
     }
 }
@@ -118,10 +151,13 @@ private fun EventDetailContent(
     isJoined: Boolean,
     onBack: () -> Unit,
     onToggleJoin: () -> Unit,
-    onSave: (Event) -> Unit,
+    onSave: (Event, Double?, Double?) -> Unit,
+    onPickLocation: () -> Unit,
+    pickedLocation: PickedLocation?,
+    onPickedLocationConsumed: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var isEditing by remember { mutableStateOf(false) }
+    var isEditing by rememberSaveable { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     
     // Editable state
@@ -136,6 +172,20 @@ private fun EventDetailContent(
     
     val tagSearchBarState = remember { TextFieldState("") }
     val tagOptions = remember(tags) { event_types.filter { it !in tags }.sorted() }
+
+    // Coordinates resolved from the map picker.
+    var locationLat by remember(event) { mutableStateOf<Double?>(null) }
+    var locationLng by remember(event) { mutableStateOf<Double?>(null) }
+
+    // When the picker returns a result, fill the address + store coordinates.
+    LaunchedEffect(pickedLocation) {
+        pickedLocation?.let {
+            locationText = it.address
+            locationLat = it.lat
+            locationLng = it.lng
+            onPickedLocationConsumed()
+        }
+    }
 
     val context = LocalContext.current
 
@@ -206,11 +256,38 @@ private fun EventDetailContent(
                 }
 
                 // Location
-                if (isEditing) {
-                    DetailEditField("Location", locationText, onChange = { locationText = it }, icon = R.drawable.location_on)
-                } else {
-                    DetailInfoRow(R.drawable.location_on, locationText.ifBlank { "No location set" })
+                Column {
+                    EventInfoField(
+                        valor = locationText,
+                        onChange = {
+                            locationText = it
+                            locationLat = null
+                            locationLng = null
+                        },
+                        isEditing = isEditing,
+                        fontSize = 16.sp,
+                        font = Font(R.font.lexend_light, FontWeight.Normal),
+                        leadingIconPainter = painterResource(R.drawable.location_on)
+                    )
+
+                    if (isEditing) {
+                        TextButton(
+                            onClick = onPickLocation,
+                            modifier = Modifier.padding(start = 32.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.location_on),
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = SageDark
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Select on map", color = SageDark, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
+
+                Spacer(Modifier.height(8.dp))
 
                 // People Limit
                 val limitInt = limitPeople.toIntOrNull() ?: 0
@@ -327,11 +404,9 @@ private fun EventDetailContent(
         }
 
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Owner
             val owner = allUsers.find { it.uid == event.ownerId }
             ParticipantItem(owner?.displayName ?: "Unknown", isOwner = true)
 
-            // Others
             participantIds.filter { it != event.ownerId }.forEach { uid ->
                 val user = allUsers.find { it.uid == uid }
                 ParticipantItem(
@@ -358,16 +433,22 @@ private fun EventDetailContent(
                     }
                     Button(
                         onClick = {
-                            onSave(event.copy(
-                                name = name,
-                                description = description,
-                                locationText = locationText,
-                                dateTime = dateTime,
-                                limitPeople = limitPeople.toIntOrNull() ?: 0,
-                                isPublic = isPublic,
-                                participantIds = participantIds,
-                                tags = tags
-                            ))
+                            val limitInt = limitPeople.toIntOrNull() ?: 0
+                            onSave(
+                                event.copy(
+                                    name = name,
+                                    description = description,
+                                    locationText = locationText,
+                                    dateTime = dateTime,
+                                    limitPeople = limitInt,
+                                    isPublic = isPublic,
+                                    participantIds = participantIds,
+                                    tags = tags,
+                                    category = tags.firstOrNull() ?: ""
+                                ),
+                                locationLat,
+                                locationLng
+                            )
                             isEditing = false
                         },
                         modifier = Modifier.weight(1f).height(50.dp),
@@ -385,8 +466,6 @@ private fun EventDetailContent(
                 ) {
                     Text("Delete Event")
                 }
-            } else {
-                // Button for non-editing owner if needed (already have edit icon)
             }
         } else {
             Button(
@@ -531,4 +610,4 @@ private fun ParticipantItem(name: String, isOwner: Boolean, onRemove: (() -> Uni
 }
 
 @Composable
-private fun imageVectorPainter(imageVector: ImageVector) = androidx.compose.ui.graphics.vector.rememberVectorPainter(imageVector)
+private fun imageVectorPainter(imageVector: ImageVector): VectorPainter = rememberVectorPainter(imageVector)

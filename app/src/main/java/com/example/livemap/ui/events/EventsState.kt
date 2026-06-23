@@ -1,5 +1,8 @@
 package com.example.livemap.ui.events
 
+/** Result handed back from the map location picker (see LocationPickerScreen). */
+data class PickedLocation(val lat: Double, val lng: Double, val address: String)
+
 /**
  * The aesthetic UI model from the team's design. We map data.model.Event → EventUi
  * inside the ViewModel so EventsScreen doesn't need to know about Firestore types.
