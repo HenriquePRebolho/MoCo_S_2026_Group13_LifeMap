@@ -1,22 +1,31 @@
 package com.example.livemap
 
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
@@ -27,7 +36,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
+import com.example.livemap.aux_files.event_types
 import com.example.livemap.composables.DateTimePickerModal
 import com.example.livemap.composables.EventInfoField
 import com.example.livemap.composables.SearchResultField
@@ -38,8 +47,6 @@ import com.example.livemap.ui.events.EventDetailState
 import com.example.livemap.ui.events.EventDetailViewModel
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
-import java.time.Instant
-import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.*
 
@@ -102,6 +109,10 @@ private fun EventDetailContent(
     var limitPeople by remember(event) { mutableStateOf(event.limitPeople.toString()) }
     var isPublic by remember(event) { mutableStateOf(event.isPublic) }
     var participantIds by remember(event) { mutableStateOf(event.participantIds) }
+    var tags by remember(event) { mutableStateOf(event.tags) }
+    
+    val tagSearchBarState = remember { TextFieldState("") }
+    val tagOptions = remember(tags) { event_types.filter { it !in tags }.sorted() }
 
     val context = LocalContext.current
 
@@ -202,18 +213,64 @@ private fun EventDetailContent(
 
         Spacer(Modifier.height(16.dp))
 
+        // Tags
+        Text("Tags", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        if (isEditing) {
+            SimpleSearchBar(
+                label = "Add tag",
+                textFieldState = tagSearchBarState,
+                onSearch = { },
+                searchResults = tagOptions,
+                onFriendClicked = { tag ->
+                    tags = tags + tag
+                }
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        @OptIn(ExperimentalLayoutApi::class)
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            tags.forEach { tag ->
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = if (isEditing) Modifier.clickable { tags = tags - tag } else Modifier
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(tag, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        if (isEditing) {
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Remove tag",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
         // Participants / Invite Friends
         Text("Participants", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         
         if (isEditing && isOwner) {
-            var searchFriendQuery by remember { mutableStateOf("") }
-            val searchBarState = remember { androidx.compose.foundation.text.input.TextFieldState(searchFriendQuery) }
+            val searchBarState = remember { TextFieldState("") }
             val availableFriends = friends.filter { it.uid !in participantIds }
 
             SimpleSearchBar(
                 label = "Invite friends",
                 textFieldState = searchBarState,
-                onSearch = { searchFriendQuery = it },
+                onSearch = { },
                 searchResults = availableFriends.map { it.displayName },
                 onFriendClicked = { name ->
                     val user = availableFriends.find { it.displayName == name }
@@ -274,7 +331,8 @@ private fun EventDetailContent(
                                 dateTime = dateTime,
                                 limitPeople = limitPeople.toIntOrNull() ?: 0,
                                 isPublic = isPublic,
-                                participantIds = participantIds
+                                participantIds = participantIds,
+                                tags = tags
                             ))
                             isEditing = false
                         },

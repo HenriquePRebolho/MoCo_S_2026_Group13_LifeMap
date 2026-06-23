@@ -205,8 +205,8 @@ fun ProfileScreen(
             if (showSourceDialog) {
                 AlertDialog(
                     onDismissRequest = { showSourceDialog = false },
-                    title = { Text("Select Image Source") },
-                    text = { Text("Choose how you want to add a photo for your event.") },
+                    title = { Text("Update Profile Picture") },
+                    text = { Text("Choose how you want to update your profile picture.") },
                     confirmButton = {
                         TextButton(onClick = {
                             showSourceDialog = false
