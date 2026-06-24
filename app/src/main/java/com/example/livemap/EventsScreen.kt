@@ -546,7 +546,7 @@ fun EventCard(
             .clickableNoRipple(onClick)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Text(event.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkText, modifier = Modifier.weight(1f))
+            Text(event.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkText,)
             Spacer(Modifier.height(8.dp))
             InfoLine(R.drawable.schedule, "${event.date} • ${event.time}")
             Spacer(Modifier.height(4.dp))
