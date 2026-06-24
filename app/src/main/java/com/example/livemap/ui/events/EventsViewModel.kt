@@ -3,6 +3,7 @@ package com.example.livemap.ui.events
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.livemap.aux_files.LatLng
+import com.example.livemap.aux_files.event_types
 import com.example.livemap.aux_files.haversineKm
 import com.example.livemap.aux_files.matchesDistanceFilter
 import com.example.livemap.data.model.Event
@@ -80,11 +81,26 @@ class EventsViewModel(
             // scanning the whole list per id (was O(recent × events)).
             val byId = mapped.associateBy { it.id }
 
+            // Real categories present among events (category + tags), in configs.kt
+            // order, plus per-category event counts — same approach as the map.
+            val present = buildSet { mapped.forEach { add(it.category); addAll(it.tags) } }
+            val availableCategories = event_types.filter { it in present }
+            val categoryCounts = mapped
+                .flatMap { (listOf(it.category) + it.tags).distinct() }
+                .filter { it.isNotBlank() }
+                .groupingBy { it }
+                .eachCount()
+
+            // Past events are pulled out of the active sections and grouped on
+            // their own, newest first.
             EventsState.Loaded(
-                nearby = filteredAll.filter { !it.ownedByMe && !it.joinedByMe },
-                joined = mapped.filter { it.joinedByMe },
-                recentlyJoined = recentIds.mapNotNull { byId[it] },
-                owned = mapped.filter { it.ownedByMe }
+                nearby = filteredAll.filter { !it.ownedByMe && !it.joinedByMe && !it.isPast },
+                joined = mapped.filter { it.joinedByMe && !it.isPast },
+                recentlyJoined = recentIds.mapNotNull { byId[it] }.filter { !it.isPast },
+                owned = mapped.filter { it.ownedByMe && !it.isPast },
+                past = mapped.filter { it.isPast }.sortedByDescending { it.startMillis ?: 0L },
+                availableCategories = availableCategories,
+                categoryCounts = categoryCounts
             ) as EventsState
         }
             .catch { e -> emit(EventsState.Error(e.localizedMessage ?: "Failed to load events")) }
@@ -143,8 +159,22 @@ class EventsViewModel(
         ownedByMe = ownerId == uid,
         joinedByMe = participantIds.contains(uid),
         timeBucket = dateTime.toTimeBucket(),
-        tags = tags
+        tags = tags,
+        isPast = dateTime.isBeforeToday(),
+        startMillis = dateTime?.toDate()?.time
     )
+
+    /** True when the timestamp falls on a day earlier than today. */
+    private fun Timestamp?.isBeforeToday(): Boolean {
+        val date = this?.toDate() ?: return false
+        val todayStart = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.time
+        return date.before(todayStart)
+    }
 
     /**
      * Computes the event's distance from the user, or null when it can't be known
@@ -158,7 +188,8 @@ class EventsViewModel(
     }
 
     private fun List<EventUi>.applyFilters(f: EventFilters, hasLocation: Boolean): List<EventUi> = filter { ev ->
-        val byCategory  = f.category  == null || ev.category  == f.category
+        // Match the event's main category OR any of its tags, like the map filter.
+        val byCategory  = f.category  == null || ev.category == f.category || ev.tags.contains(f.category)
         val byAge       = f.ageRange  == null || f.ageRange == "Any" || ev.ageRange == f.ageRange
         val byGender    = f.gender    == null || f.gender == "Any" || ev.genderPref == f.gender || ev.genderPref == "Any"
         val byTime      = f.time      == null || f.time == "Any" || ev.timeBucket == f.time

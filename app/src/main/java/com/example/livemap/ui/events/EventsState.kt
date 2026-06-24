@@ -27,7 +27,11 @@ data class EventUi(
     val ownedByMe: Boolean = false,
     val joinedByMe: Boolean = false,
     val timeBucket: String = "Today",
-    val tags: List<String> = emptyList()
+    val tags: List<String> = emptyList(),
+    // True when the event's date is earlier than today → shown under "Past Events".
+    val isPast: Boolean = false,
+    // Event start in epoch millis, used to sort past events (newest first). null = no date.
+    val startMillis: Long? = null
 )
 
 /**
@@ -53,7 +57,13 @@ sealed class EventsState {
         val nearby: List<EventUi>,
         val joined: List<EventUi>,
         val recentlyJoined: List<EventUi>,
-        val owned: List<EventUi>
+        val owned: List<EventUi>,
+        // Events whose date has already passed, newest first.
+        val past: List<EventUi> = emptyList(),
+        // Real categories present among the events (configs.kt order) + how many
+        // events each has, so the category filter mirrors the map's behaviour.
+        val availableCategories: List<String> = emptyList(),
+        val categoryCounts: Map<String, Int> = emptyMap()
     ) : EventsState()
     data class Error(val message: String) : EventsState()
 }

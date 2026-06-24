@@ -55,6 +55,7 @@ fun EventInfoField(
             fontFamily = FontFamily(font),
             fontSize = fontSize,
             fontWeight = FontWeight.Normal,
+            color = Color.Black,
         ),
         keyboardOptions = KeyboardOptions.Default.copy(keyboardType = keyboardType),
         decorationBox = { innerTextField ->

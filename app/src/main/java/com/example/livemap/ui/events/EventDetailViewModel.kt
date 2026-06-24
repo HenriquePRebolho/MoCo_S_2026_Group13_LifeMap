@@ -1,5 +1,6 @@
 package com.example.livemap.ui.events
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.livemap.data.model.Event
@@ -34,6 +35,42 @@ class EventDetailViewModel(
 
     private val _state = MutableStateFlow<EventDetailState>(EventDetailState.Loading)
     val state: StateFlow<EventDetailState> = _state.asStateFlow()
+
+    // ── Edit form state ─────────────────────────────────────────────────────────
+    // Hoisted into the ViewModel so it survives navigating to the map location
+    // picker and back, which disposes the screen's composition (a disposed
+    // composition would otherwise wipe plain remember values and lose the edits).
+    val isEditing = mutableStateOf(false)
+    val formName = mutableStateOf("")
+    val formDescription = mutableStateOf("")
+    val formLocationText = mutableStateOf("")
+    val formDateTime = mutableStateOf<Timestamp?>(null)
+    val formLimitPeople = mutableStateOf("")
+    val formIsPublic = mutableStateOf(true)
+    val formParticipantIds = mutableStateOf<List<String>>(emptyList())
+    val formTags = mutableStateOf<List<String>>(emptyList())
+    val formLocationLat = mutableStateOf<Double?>(null)
+    val formLocationLng = mutableStateOf<Double?>(null)
+
+    /** Fills the edit form from an event. Picked coordinates reset to null. */
+    private fun seedForm(event: Event) {
+        formName.value = event.name
+        formDescription.value = event.description
+        formLocationText.value = event.locationText
+        formDateTime.value = event.dateTime
+        formLimitPeople.value = event.limitPeople.toString()
+        formIsPublic.value = event.isPublic
+        formParticipantIds.value = event.participantIds
+        formTags.value = event.tags
+        formLocationLat.value = null
+        formLocationLng.value = null
+    }
+
+    /** Leaves edit mode and discards any in-progress edits. */
+    fun cancelEdit() {
+        isEditing.value = false
+        (_state.value as? EventDetailState.Loaded)?.let { seedForm(it.event) }
+    }
 
     private val currentUid = authRepository.currentUser()?.uid
 
@@ -70,6 +107,9 @@ class EventDetailViewModel(
         viewModelScope.launch {
             eventRepository.getEvent(eventId).onSuccess { event ->
                 if (event != null) {
+                    // Seed the edit form on load, but never while the user is mid-edit
+                    // (e.g. after returning from the map picker) so edits aren't lost.
+                    if (!isEditing.value) seedForm(event)
                     _state.value = EventDetailState.Loaded(
                         event = event,
                         isOwner = event.ownerId == currentUid,

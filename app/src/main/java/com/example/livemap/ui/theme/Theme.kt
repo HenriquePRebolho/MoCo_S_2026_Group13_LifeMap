@@ -9,6 +9,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
@@ -21,17 +22,11 @@ private val LightColorScheme = lightColorScheme(
     primary = Purple40,
     secondary = PurpleGrey40,
     tertiary = Pink40,
-    background = BackgroundLightPrimary
-
-    /* Other default colors to override
-
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    background = BackgroundLightPrimary,
+    // Pure-black content colors so typed text in every input is solid black,
+    // never washed out. Labels/placeholders use onSurfaceVariant and stay soft.
+    onBackground = Color.Black,
+    onSurface = Color.Black,
 )
 
 @Composable
@@ -41,15 +36,10 @@ fun LiveMapTheme(
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    // The whole app is designed around fixed light backgrounds, so we always use
+    // the light scheme. This prevents dark mode from rendering typed text in a
+    // light color over those light backgrounds (which made it near-invisible).
+    val colorScheme = LightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,

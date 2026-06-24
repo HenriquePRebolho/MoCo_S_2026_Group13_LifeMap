@@ -81,9 +81,7 @@ private val SageText     = Color(0xFF6B7855)
 
 /* ---------- Filter option lists ---------- */
 // Distance options are shared with the Map filter menu (aux_files/LocationUtils).
-private val CategoryOptions  = listOf("Sport", "Study", "Social", "Art", "Food", "Music")
-private val AgeOptions       = listOf("18-25", "26-35", "36-45", "Any")
-private val GenderOptions    = listOf("Any", "Male", "Female", "Mixed")
+// Category options are now derived from the real events (configs.kt), like the map.
 private val MaxPeopleOptions = listOf("5", "10", "20", "Any")
 private val TimeOptions      = listOf("Today", "Tomorrow", "This week", "Any")
 
@@ -186,6 +184,7 @@ private fun LoadedContent(
     var joinedExpanded by rememberSaveable { mutableStateOf(false) }
     var recentExpanded by rememberSaveable { mutableStateOf(false) }
     var ownedExpanded by rememberSaveable { mutableStateOf(false) }
+    var pastExpanded by rememberSaveable { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -204,6 +203,8 @@ private fun LoadedContent(
         item {
             FiltersCard(
                 locationAvailable = locationAvailable,
+                availableCategories = state.availableCategories,
+                categoryCounts = state.categoryCounts,
                 distance = distance, onDistance = { onDistance(if (distance == it) null else it) },
                 category = category, onCategory = { onCategory(if (category == it) null else it) },
                 maxPeople = maxPeople, onMaxPeople = { onMaxPeople(if (maxPeople == it) null else it) },
@@ -281,6 +282,29 @@ private fun LoadedContent(
             }
         }
 
+        item {
+            CollapsibleSectionHeader("Past Events", state.past.size, pastExpanded) {
+                pastExpanded = !pastExpanded
+            }
+        }
+        if (pastExpanded) {
+            if (state.past.isEmpty()) {
+                item { EmptyHint("No past events yet.") }
+            } else {
+                items(state.past, key = { "past_${it.id}" }) { ev ->
+                    // Historical event: relationship-coloured card, action disabled.
+                    val kind = when {
+                        ev.ownedByMe  -> CardKind.OWNER
+                        ev.joinedByMe -> CardKind.JOINED
+                        else          -> CardKind.AVAILABLE
+                    }
+                    EventCard(ev, "Ended", false, kind,
+                        onClick = { onEventClick(ev.id) }
+                    )
+                }
+            }
+        }
+
         item { Spacer(Modifier.height(20.dp)) }
     }
 }
@@ -297,6 +321,8 @@ private inline fun androidx.compose.foundation.lazy.LazyListScope.items(
 @Composable
 private fun FiltersCard(
     locationAvailable: Boolean,
+    availableCategories: List<String>,
+    categoryCounts: Map<String, Int>,
     distance: String?, onDistance: (String) -> Unit,
     category: String?, onCategory: (String) -> Unit,
     maxPeople: String?, onMaxPeople: (String) -> Unit,
@@ -334,7 +360,12 @@ private fun FiltersCard(
                 enabled = locationAvailable,
                 disabledMessage = "Location unavailable"
             )
-            FilterAccordion("Category",   CategoryOptions,  category,  onCategory)
+            FilterAccordion(
+                "Category", availableCategories, category, onCategory,
+                enabled = availableCategories.isNotEmpty(),
+                disabledMessage = "No categories available",
+                displayLabel = { "$it (${categoryCounts[it] ?: 0})" }
+            )
             FilterAccordion("Max people", MaxPeopleOptions, maxPeople, onMaxPeople)
             FilterAccordion("Time",       TimeOptions,      time,      onTime)
         }

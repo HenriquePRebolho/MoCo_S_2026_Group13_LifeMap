@@ -95,19 +95,20 @@ fun NewScreen(
     val context = LocalContext.current
     val state by newEventViewModel.state.collectAsState()
 
-    // State
-    var eventName by remember { mutableStateOf("") }
-    var eventDescription by remember { mutableStateOf("") }
-    var eventLocation by remember { mutableStateOf("") }
-    var selectedDateTime by remember { mutableStateOf<LocalDateTime?>(null) }
-    var peopleLimit by remember { mutableStateOf("") }
-    var isPublic by remember { mutableStateOf(true) }
-    var addedEvents by remember { mutableStateOf(listOf<String>()) }
-    var addedFriendIds by remember { mutableStateOf(listOf<String>()) }
+    // Form state is delegated to the ViewModel so it survives navigating to the
+    // map location picker and back (a disposed composition loses plain remember).
+    var eventName by newEventViewModel.eventName
+    var eventDescription by newEventViewModel.eventDescription
+    var eventLocation by newEventViewModel.eventLocation
+    var selectedDateTime by newEventViewModel.selectedDateTime
+    var peopleLimit by newEventViewModel.peopleLimit
+    var isPublic by newEventViewModel.isPublic
+    var addedEvents by newEventViewModel.addedEvents
+    var addedFriendIds by newEventViewModel.addedFriendIds
 
     // Coordinates resolved from the map picker.
-    var eventLat by remember { mutableStateOf<Double?>(null) }
-    var eventLng by remember { mutableStateOf<Double?>(null) }
+    var eventLat by newEventViewModel.eventLat
+    var eventLng by newEventViewModel.eventLng
 
     // When the picker returns a result, fill the field + store coordinates.
     LaunchedEffect(pickedLocation) {
@@ -371,9 +372,7 @@ fun NewScreen(
                 is NewEventState.Success -> {
                     Toast.makeText(context, "Event created successfully!", Toast.LENGTH_SHORT).show()
                     newEventViewModel.resetState()
-                    eventName = ""; eventDescription = ""; eventLocation = ""; selectedDateTime = null
-                    addedEvents = emptyList(); addedFriendIds = emptyList(); peopleLimit = ""
-                    eventLat = null; eventLng = null
+                    newEventViewModel.resetForm()
                 }
                 is NewEventState.Error -> {
                     Text(text = s.message, color = Color.Red, modifier = Modifier.padding(top = 8.dp), fontSize = 13.sp)

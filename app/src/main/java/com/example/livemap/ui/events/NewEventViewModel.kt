@@ -1,5 +1,6 @@
 package com.example.livemap.ui.events
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.livemap.data.model.Event
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 import java.util.Date
 
 sealed class NewEventState {
@@ -36,6 +38,35 @@ class NewEventViewModel(
 
     private val _state = MutableStateFlow<NewEventState>(NewEventState.Idle)
     val state: StateFlow<NewEventState> = _state.asStateFlow()
+
+    // ── Form state ────────────────────────────────────────────────────────────
+    // Held in the ViewModel (not in the screen's remember) so it survives
+    // navigating to the map location picker and back: that navigation disposes
+    // NewScreen's composition, which would otherwise wipe plain remember values.
+    val eventName = mutableStateOf("")
+    val eventDescription = mutableStateOf("")
+    val eventLocation = mutableStateOf("")
+    val selectedDateTime = mutableStateOf<LocalDateTime?>(null)
+    val peopleLimit = mutableStateOf("")
+    val isPublic = mutableStateOf(true)
+    val addedEvents = mutableStateOf<List<String>>(emptyList())
+    val addedFriendIds = mutableStateOf<List<String>>(emptyList())
+    val eventLat = mutableStateOf<Double?>(null)
+    val eventLng = mutableStateOf<Double?>(null)
+
+    /** Clears the whole form (used after a successful creation). */
+    fun resetForm() {
+        eventName.value = ""
+        eventDescription.value = ""
+        eventLocation.value = ""
+        selectedDateTime.value = null
+        peopleLimit.value = ""
+        isPublic.value = true
+        addedEvents.value = emptyList()
+        addedFriendIds.value = emptyList()
+        eventLat.value = null
+        eventLng.value = null
+    }
 
     private val currentUid = authRepository.currentUser()?.uid
 

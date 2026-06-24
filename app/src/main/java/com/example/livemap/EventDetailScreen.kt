@@ -124,6 +124,7 @@ fun EventDetailScreen(
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = SageDark)
         } else if (s is EventDetailState.Loaded) {
             EventDetailContent(
+                viewModel = viewModel,
                 event = s.event,
                 allUsers = allUsers,
                 friends = friends,
@@ -146,6 +147,7 @@ fun EventDetailScreen(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun EventDetailContent(
+    viewModel: EventDetailViewModel,
     event: Event,
     allUsers: List<User>,
     friends: List<User>,
@@ -159,25 +161,29 @@ private fun EventDetailContent(
     onPickedLocationConsumed: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var isEditing by rememberSaveable { mutableStateOf(false) }
+    // Edit state is hoisted into the ViewModel so it survives navigating to the
+    // map location picker and back (the screen's composition is disposed during
+    // that round trip, which would wipe plain remember values). The ViewModel
+    // seeds these from the event on load.
+    var isEditing by viewModel.isEditing
     var showDeleteDialog by remember { mutableStateOf(false) }
-    
+
     // Editable state
-    var name by remember(event) { mutableStateOf(event.name) }
-    var description by remember(event) { mutableStateOf(event.description) }
-    var locationText by remember(event) { mutableStateOf(event.locationText) }
-    var dateTime by remember(event) { mutableStateOf(event.dateTime) }
-    var limitPeople by remember(event) { mutableStateOf(event.limitPeople.toString()) }
-    var isPublic by remember(event) { mutableStateOf(event.isPublic) }
-    var participantIds by remember(event) { mutableStateOf(event.participantIds) }
-    var tags by remember(event) { mutableStateOf(event.tags) }
-    
+    var name by viewModel.formName
+    var description by viewModel.formDescription
+    var locationText by viewModel.formLocationText
+    var dateTime by viewModel.formDateTime
+    var limitPeople by viewModel.formLimitPeople
+    var isPublic by viewModel.formIsPublic
+    var participantIds by viewModel.formParticipantIds
+    var tags by viewModel.formTags
+
     val tagSearchBarState = remember { TextFieldState("") }
     val tagOptions = remember(tags) { event_types.filter { it !in tags }.sorted() }
 
     // Coordinates resolved from the map picker.
-    var locationLat by remember(event) { mutableStateOf<Double?>(null) }
-    var locationLng by remember(event) { mutableStateOf<Double?>(null) }
+    var locationLat by viewModel.formLocationLat
+    var locationLng by viewModel.formLocationLng
 
     // When the picker returns a result, fill the address + store coordinates.
     LaunchedEffect(pickedLocation) {
@@ -471,7 +477,7 @@ private fun EventDetailContent(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             OutlinedButton(
-                                onClick = { isEditing = false },
+                                onClick = { viewModel.cancelEdit() },
                                 modifier = Modifier.weight(1f).height(50.dp),
                                 shape = RoundedCornerShape(16.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, SageDark),
