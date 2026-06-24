@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -335,19 +337,36 @@ private fun FriendCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChipsRow(label: String, items: List<String>, chipColor: Color, textColor: Color) {
+    val maxShown = 6
     Column {
         Text(label, fontSize = 12.sp, color = MutedText)
         Spacer(Modifier.height(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            items.take(5).forEach { item ->
-                Surface(shape = RoundedCornerShape(50), color = chipColor) {
-                    Text(item, fontSize = 12.sp, color = textColor,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
-                }
+        // FlowRow wraps chips onto multiple lines so a long interest list never
+        // overflows the card width (a plain Row clipped/stretched the layout).
+        // We still cap the count with a "+N" chip to keep list cards compact.
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            items.take(maxShown).forEach { item ->
+                InterestChip(item, chipColor, textColor)
+            }
+            if (items.size > maxShown) {
+                InterestChip("+${items.size - maxShown}", chipColor, textColor)
             }
         }
+    }
+}
+
+@Composable
+private fun InterestChip(text: String, chipColor: Color, textColor: Color) {
+    Surface(shape = RoundedCornerShape(50), color = chipColor) {
+        Text(text, fontSize = 12.sp, color = textColor,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
     }
 }
